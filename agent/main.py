@@ -26,6 +26,7 @@ from uagents_core.contrib.protocols.chat import (
     StartSessionContent,
     EndSessionContent,
     TextContent,
+    MetadataContent,
     chat_protocol_spec,
 )
 
@@ -108,15 +109,34 @@ async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
         for c in msg.content
     )
 
+    # Extract conversation/session identifier if available in message content metadata or envelope
+    conv_id = None
+    for item in msg.content:
+        if isinstance(item, MetadataContent) and hasattr(item, "metadata") and isinstance(item.metadata, dict):
+            conv_id = (
+                item.metadata.get("conversation_id")
+                or item.metadata.get("session_id")
+                or item.metadata.get("chat_id")
+                or item.metadata.get("thread_id")
+            )
+            if conv_id:
+                conv_id = str(conv_id)
+                break
+
+    if not conv_id and hasattr(ctx, "session") and ctx.session is not None:
+        from unittest.mock import MagicMock
+        if not isinstance(ctx.session, MagicMock):
+            conv_id = str(ctx.session)
+
     if is_end_session:
-        ctx.logger.info(f"End session received from {sender}; clearing session state")
-        orchestrator.clear_session(sender)
+        ctx.logger.info(f"End session received from {sender} (conv={conv_id}); clearing session state")
+        orchestrator.clear_session(sender, conv_id)
         return
 
     # If this is a new session start, reset session state so prior conversation profile is not leaked
     if is_start_session:
-        ctx.logger.info(f"New session signaled from {sender}; initializing fresh session state")
-        orchestrator.reset_session(sender)
+        ctx.logger.info(f"New session signaled from {sender} (conv={conv_id}); initializing fresh session state")
+        orchestrator.reset_session(sender, conv_id)
 
     # 3. Robust user text extraction
     # A ChatMessage can contain StartSessionContent AND TextContent (e.g. from Agentverse web chat).
@@ -147,16 +167,20 @@ async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
         if is_start_session:
             # Empty session initiation handshake: deliver welcome greeting
             ctx.logger.info(f"Sending welcome greeting to {sender} for empty session start")
-            reply = await orchestrator.handle_citizen_message(sender, "hello")
+            reply = await orchestrator.handle_citizen_message(
+                sender, "hello", conversation_id=conv_id, is_new_session_signal=True
+            )
             await ctx.send(sender, reply)
             return
         ctx.logger.debug(f"Received empty text content from {sender}; skipping")
         return
 
     # 5. Process user query through orchestrator and dispatch contextually relevant response
-    ctx.logger.info(f"Processing query from {sender}: {user_query}")
+    ctx.logger.info(f"Processing query from {sender} (conv={conv_id}): {user_query}")
     try:
-        reply_message = await orchestrator.handle_citizen_message(sender, user_query)
+        reply_message = await orchestrator.handle_citizen_message(
+            sender, user_query, conversation_id=conv_id, is_new_session_signal=is_start_session
+        )
         await ctx.send(sender, reply_message)
         ctx.logger.info(f"Dispatched reply message to {sender}")
     except Exception as e:

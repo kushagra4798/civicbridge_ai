@@ -435,18 +435,13 @@ def evaluate_rule(rule: EligibilityRule, profile: ApplicantProfile) -> RuleEvalu
     if r_type == "degree_status":
         allowed_statuses = params.get("allowed_status", ["pursuing"])
         if profile.current_degree_status is None:
-            # If occupation is student, default inference is pursuing
-            if profile.occupation == "student":
-                status_inferred = "pursuing"
-            else:
-                return RuleEvaluationResult(
-                    rule_name=r_name,
-                    description=desc,
-                    status="UNKNOWN",
-                    reason=f"Degree enrollment status unknown; requires {', '.join(allowed_statuses)}.",
-                )
-        else:
-            status_inferred = profile.current_degree_status
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="UNKNOWN",
+                reason=f"Degree enrollment status is not specified; requires {', '.join(allowed_statuses)}.",
+            )
+        status_inferred = profile.current_degree_status
 
         if status_inferred in allowed_statuses:
             return RuleEvaluationResult(

@@ -37,12 +37,14 @@ SENSITIVE_12_DIGIT_RE = re.compile(r"\b[0-9]{4}\s*[0-9]{4}\s*[0-9]{4}\b")
 class UserSession:
     """Tracks state, accumulated profile, and growth plan for an active citizen chat session."""
 
-    def __init__(self, sender_id: str) -> None:
+    def __init__(self, sender_id: str, conversation_id: Optional[str] = None) -> None:
         self.sender_id = sender_id
+        self.conversation_id = conversation_id
         self.profile = ApplicantProfile()
         self.last_evaluations: List[SchemeEvaluation] = []
         self.growth_plan: Optional[EligibilityGrowthPlan] = None
         self.state: str = "INITIAL"
+        self.turn_count: int = 0
         self.pending_question_field: Optional[str] = None
 
 
@@ -62,19 +64,104 @@ class CivicBridgeOrchestrator:
         self.planner = planner_specialist or ApplicationPlanningSpecialist()
         self._sessions: Dict[str, UserSession] = {}
 
-    def get_or_create_session(self, sender_id: str) -> UserSession:
-        if sender_id not in self._sessions:
-            self._sessions[sender_id] = UserSession(sender_id)
-        return self._sessions[sender_id]
+    def _get_session_key(self, sender_id: str, conversation_id: Optional[str] = None) -> str:
+        """Generate isolated session key by sender and conversation/session identifier."""
+        if conversation_id:
+            return f"{sender_id}:{conversation_id}"
+        return sender_id
 
-    def reset_session(self, sender_id: str) -> UserSession:
+    def get_or_create_session(
+        self, sender_id: str, conversation_id: Optional[str] = None
+    ) -> UserSession:
+        key = self._get_session_key(sender_id, conversation_id)
+        if key not in self._sessions:
+            self._sessions[key] = UserSession(sender_id, conversation_id)
+        return self._sessions[key]
+
+    def reset_session(
+        self, sender_id: str, conversation_id: Optional[str] = None
+    ) -> UserSession:
         """Clear and re-initialize session state for a citizen."""
-        self._sessions[sender_id] = UserSession(sender_id)
-        return self._sessions[sender_id]
+        key = self._get_session_key(sender_id, conversation_id)
+        self._sessions[key] = UserSession(sender_id, conversation_id)
+        return self._sessions[key]
 
-    def clear_session(self, sender_id: str) -> None:
+    def clear_session(
+        self, sender_id: str, conversation_id: Optional[str] = None
+    ) -> None:
         """Remove a citizen session."""
-        self._sessions.pop(sender_id, None)
+        key = self._get_session_key(sender_id, conversation_id)
+        self._sessions.pop(key, None)
+
+    def _is_legitimate_follow_up(self, text: str, session: UserSession) -> bool:
+        """Determine whether an inbound message is a continuous follow-up to the current conversation
+        or a new independent inquiry / persona that should begin with a clean profile."""
+        if session.turn_count == 0 or (session.state == "INITIAL" and not session.last_evaluations):
+            return False
+
+        lower = text.lower().strip()
+
+        # Explicit reset signals
+        if lower in ("start", "/start", "restart", "reset", "new chat", "start over", "clear"):
+            return False
+
+        # Card button action or back action
+        if self._parse_card_action(text):
+            return True
+
+        # Specific scheme name mentioned from current evaluations
+        if session.last_evaluations:
+            for item in session.last_evaluations:
+                if (
+                    item.short_name.lower() == lower
+                    or item.scheme_id.lower() == lower
+                    or re.search(r"\b" + re.escape(item.short_name.lower()) + r"\b", lower)
+                    or re.search(r"\b" + re.escape(item.short_name.lower().replace("-", " ")) + r"\b", lower)
+                ):
+                    return True
+
+        # Check for persona / occupation declaration
+        # e.g. "I am a student...", "I am a farmer...", "I am an artisan..."
+        new_occ_match = re.search(
+            r"\b(?:i am a|i am an|am a|am an|myself a|myself an)\s+(farmer|student|artisan|street\s+vendor|vendor|worker|unorganized\s+worker|salaried|job\s+seeker)\b",
+            lower,
+        )
+        if new_occ_match:
+            new_occ = new_occ_match.group(1).replace(" ", "_")
+            if session.profile.occupation and session.profile.occupation != new_occ:
+                # Occupation changed (e.g. from farmer to student) -> New inquiry, not a follow-up
+                return False
+
+        # Check for fresh top-level standalone queries
+        if re.search(
+            r"^(?:i am a|i am an|am a|am an)\s+\w+.*(?:looking for|search for|find|need|want)\s+(?:government\s+)?(?:schemes?|internships?|scholarships?|benefits?|welfare|assistance|loans?)",
+            lower,
+        ):
+            # A full standalone query such as "I am a student looking for government internship"
+            return False
+
+        # Explicit request to reuse prior profile
+        if any(phrase in lower for phrase in ["use my previous profile", "use my existing profile", "remember my details"]):
+            return True
+
+        # If in COLLECTING_PROFILE state, answers to pending questions are legitimate follow-ups
+        if session.state == "COLLECTING_PROFILE":
+            return True
+
+        # If user is providing incremental details (e.g., income, category, land, age, education, or "skip")
+        incremental_patterns = [
+            r"\b(?:income|earning|salary|lakh|lac|lpa)\b",
+            r"\b(?:sc|st|obc|ews|general)\b",
+            r"\b(?:hectare|acre|land)\b",
+            r"\b(?:bpl|ration\s+card|pucca|house)\b",
+            r"\b(?:class\s+10|class\s+12|graduate|post\s+graduate|degree|btech|msc|ba|bcom)\b",
+            r"\b(?:skip|show me|what can i apply|continue|more|next)\b",
+        ]
+        if any(re.search(pat, lower) for pat in incremental_patterns):
+            return True
+
+        # Default fallback: If not reliably established as follow-up, do not contaminate!
+        return False
 
     def _parse_card_action(self, text: str) -> Optional[Dict[str, str]]:
         """Parse card selection JSON or prose forwarded by chat UI."""
@@ -141,11 +228,14 @@ class CivicBridgeOrchestrator:
         if schemes:
             lines.append(f"#### 📜 Government Schemes & Welfare Programs ({len(schemes)} found):")
             for idx, item in enumerate(schemes, 1):
-                badge = "🟢 **ELIGIBLE**" if item.overall_status == "ELIGIBLE" else (
-                    "🟡 **LIKELY ELIGIBLE**" if item.overall_status == "LIKELY_ELIGIBLE" else (
-                        "⚪ **POTENTIALLY ELIGIBLE**" if item.overall_status == "POTENTIALLY_ELIGIBLE" else "🔴 **NOT ELIGIBLE**"
-                    )
-                )
+                if item.overall_status == "ELIGIBLE":
+                    badge = "🟢 **ELIGIBILITY CONFIRMED (ELIGIBLE by available info)**"
+                elif item.overall_status == "LIKELY_ELIGIBLE":
+                    badge = "🟡 **LIKELY ELIGIBLE (Pending full verification)**"
+                elif item.overall_status == "POTENTIALLY_ELIGIBLE":
+                    badge = "⚪ **POTENTIALLY RELEVANT (Insufficient info to assess)**"
+                else:
+                    badge = "🔴 **NOT ELIGIBLE (Criteria unmet)**"
                 lines.append(f"**{idx}. [{item.short_name}] {item.scheme_name}** — {badge}")
                 lines.append(f"   • **Benefit:** {item.benefit_summary}")
                 if item.benefit_amount:
@@ -163,11 +253,14 @@ class CivicBridgeOrchestrator:
         if internships:
             lines.append(f"#### 💼 Government & Official Internships ({len(internships)} found):")
             for idx, item in enumerate(internships, 1):
-                badge = "🟢 **ELIGIBLE**" if item.overall_status == "ELIGIBLE" else (
-                    "🟡 **LIKELY ELIGIBLE**" if item.overall_status == "LIKELY_ELIGIBLE" else (
-                        "⚪ **POTENTIALLY ELIGIBLE**" if item.overall_status == "POTENTIALLY_ELIGIBLE" else "🔴 **NOT ELIGIBLE**"
-                    )
-                )
+                if item.overall_status == "ELIGIBLE":
+                    badge = "🟢 **ELIGIBILITY CONFIRMED (ELIGIBLE by available info)**"
+                elif item.overall_status == "LIKELY_ELIGIBLE":
+                    badge = "🟡 **LIKELY ELIGIBLE (Pending full verification)**"
+                elif item.overall_status == "POTENTIALLY_ELIGIBLE":
+                    badge = "⚪ **POTENTIALLY RELEVANT (Insufficient info to assess)**"
+                else:
+                    badge = "🔴 **NOT ELIGIBLE (Criteria unmet)**"
                 host_str = "🏛️ Government Department" if item.host_type == "government" else "🏢 Official Portal Listed Companies"
                 lines.append(f"**{idx}. [{item.short_name}] {item.scheme_name}** — {badge}")
                 lines.append(f"   • **Host:** {host_str}")
@@ -227,9 +320,15 @@ class CivicBridgeOrchestrator:
         self, plan: Dict[str, Any]
     ) -> str:
         """Render detailed document checklist and application roadmap."""
-        badge = "🟢 **ELIGIBLE**" if plan.get("eligibility_status") == "ELIGIBLE" else (
-            "🟡 **LIKELY ELIGIBLE**" if plan.get("eligibility_status") == "LIKELY_ELIGIBLE" else "⚪ **POTENTIALLY ELIGIBLE**"
-        )
+        status = plan.get("eligibility_status")
+        if status == "ELIGIBLE":
+            badge = "🟢 **ELIGIBILITY CONFIRMED (ELIGIBLE by available info)**"
+        elif status == "LIKELY_ELIGIBLE":
+            badge = "🟡 **LIKELY ELIGIBLE (Pending full verification)**"
+        elif status == "POTENTIALLY_ELIGIBLE":
+            badge = "⚪ **POTENTIALLY RELEVANT (Insufficient info to assess)**"
+        else:
+            badge = "🔴 **NOT ELIGIBLE (Criteria unmet)**"
         type_str = "💼 Internship" if plan.get("opportunity_type") == "internship" else "📜 Welfare Scheme"
 
         lines = [
@@ -267,11 +366,19 @@ class CivicBridgeOrchestrator:
         return "\n".join(lines)
 
     async def handle_citizen_message(
-        self, sender_id: str, message_text: str
+        self,
+        sender_id: str,
+        message_text: str,
+        conversation_id: Optional[str] = None,
+        is_new_session_signal: bool = False,
     ) -> ChatMessage:
         """Process an inbound natural language message or card action from a citizen."""
         text = (message_text or "").strip()
-        session = self.get_or_create_session(sender_id)
+
+        if is_new_session_signal:
+            self.reset_session(sender_id, conversation_id)
+
+        session = self.get_or_create_session(sender_id, conversation_id)
 
         # Security check: detect Aadhaar number pattern
         if SENSITIVE_12_DIGIT_RE.search(text):
@@ -369,9 +476,9 @@ class CivicBridgeOrchestrator:
                 return create_scheme_detail_chat_message(markdown, plan)
 
         # 2. Greeting or help request / session restart
-        if lower in ("hi", "hello", "namaste", "help", "start", "/start", "restart", "reset"):
-            if lower in ("start", "/start", "restart", "reset"):
-                self.reset_session(sender_id)
+        if lower in ("hi", "hello", "namaste", "help", "start", "/start", "restart", "reset", "clear", "new chat", "start over"):
+            if lower in ("start", "/start", "restart", "reset", "clear", "new chat", "start over"):
+                session = self.reset_session(sender_id, conversation_id)
             welcome = (
                 "👋 **Namaste! Welcome to CivicBridge — your AI Government Benefits & Opportunity Navigator.**\n\n"
                 "I help Indian citizens discover, qualify for, and grow into:\n"
@@ -388,8 +495,18 @@ class CivicBridgeOrchestrator:
                 content=[TextContent(type="text", text=welcome)],
             )
 
-        # 3. Extract and update profile attributes
-        session.profile = extract_profile_from_text(text, existing_profile=session.profile)
+        # 3. Check follow-up status and extract/update profile attributes safely
+        is_follow_up = self._is_legitimate_follow_up(text, session)
+        if not is_follow_up and session.turn_count > 0:
+            logger.info(f"Resetting session for fresh query/persona from {sender_id} (conv={conversation_id})")
+            session = self.reset_session(sender_id, conversation_id)
+
+        session.profile = extract_profile_from_text(
+            text,
+            existing_profile=session.profile if is_follow_up else None,
+            is_follow_up=is_follow_up,
+        )
+        session.turn_count += 1
         logger.info(f"Updated citizen profile: {session.profile.summary_dict()}")
 
         # 4. Check if we have sufficient info to search

@@ -69,10 +69,19 @@ class ApplicantProfile(BaseModel):
     marks_percentage: Optional[float] = Field(
         None, ge=0, le=100, description="Academic marks percentage (e.g. 85.0 for 85%)"
     )
+    field_sources: dict[str, str] = Field(
+        default_factory=dict,
+        description="Source tracking for profile attributes: 'explicitly_supplied', 'reliably_established', or 'unknown'"
+    )
+
+    def get_source(self, field_name: str) -> str:
+        """Return the establishment source of a specific field."""
+        return self.field_sources.get(field_name, "unknown")
 
     def summary_dict(self) -> dict:
         """Return non-null profile attributes for display and logging."""
-        return {k: v for k, v in self.model_dump().items() if v is not None}
+        data = {k: v for k, v in self.model_dump().items() if v is not None and k != "field_sources"}
+        return data
 
     def has_sufficient_info_for_search(self) -> bool:
         """Check if profile has enough detail to identify relevant schemes or internships."""
@@ -128,104 +137,159 @@ INDIAN_STATES = [
 ]
 
 
-def extract_profile_from_text(text: str, existing_profile: Optional[ApplicantProfile] = None) -> ApplicantProfile:
-    """Extract applicant attributes from citizen natural language text.
+def extract_profile_from_text(
+    text: str,
+    existing_profile: Optional[ApplicantProfile] = None,
+    is_follow_up: bool = False,
+) -> ApplicantProfile:
+    """Extract applicant attributes from natural language text.
     
-    Preserves existing information while updating newly discovered fields.
+    If is_follow_up is True and an existing_profile is supplied, compatible attributes
+    from the current conversation are preserved while newly supplied details are updated.
+    If is_follow_up is False, a clean profile is created without inheriting stale facts.
     """
-    profile = existing_profile.model_copy() if existing_profile else ApplicantProfile()
     lower = text.lower()
 
-    # 1. Opportunity Type & Intent
-    has_internship = any(w in lower for w in ["internship", "intern", "trainee", "apprenticeship"])
-    has_scheme = any(w in lower for w in [
-        "scheme", "scholarship", "financial assistance", "assistance", "benefit",
-        "fund", "grant", "subsidy", "welfare", "pension", "loan"
-    ])
+    # Step 1: Initialize profile based on follow-up context
+    if is_follow_up and existing_profile:
+        profile = existing_profile.model_copy()
+        # Mark all inherited non-null fields as reliably established in current conversation
+        for k, v in profile.model_dump().items():
+            if v is not None and k != "field_sources":
+                if k not in profile.field_sources:
+                    profile.field_sources[k] = "reliably_established"
+    else:
+        profile = ApplicantProfile()
+
+    # Step 2: Opportunity Type & Intent
+    has_internship = bool(re.search(r"\b(?:internship|internships|intern|interns|trainee|apprenticeship)\b", lower))
+    has_scheme = bool(re.search(
+        r"\b(?:scheme|schemes|scholarship|scholarships|financial assistance|assistance|benefit|benefits|fund|grant|subsidy|welfare|pension|pensions|loan|loans)\b",
+        lower
+    ))
     if has_internship and has_scheme:
         profile.opportunity_interest = "both"
+        profile.field_sources["opportunity_interest"] = "explicitly_supplied"
     elif has_internship:
         profile.opportunity_interest = "internships"
+        profile.field_sources["opportunity_interest"] = "explicitly_supplied"
     elif has_scheme:
         profile.opportunity_interest = "schemes"
+        profile.field_sources["opportunity_interest"] = "explicitly_supplied"
 
-    # 2. Category of Interest
+    # Step 3: Category of Interest
     if has_internship and not has_scheme:
         profile.category_interest = "internship"
-    elif any(w in lower for w in ["farmer", "kisan", "crop", "agriculture", "farming", "landholder"]):
+        profile.field_sources["category_interest"] = "explicitly_supplied"
+    elif re.search(r"\b(?:farmer|farmers|kisan|crop|crops|agriculture|farming|cultivator|cultivators)\b", lower):
         profile.category_interest = "agriculture"
+        profile.field_sources["category_interest"] = "explicitly_supplied"
         if profile.occupation is None:
             profile.occupation = "farmer"
-    elif any(w in lower for w in ["scholarship", "student", "study", "college", "school", "education"]):
+            profile.field_sources["occupation"] = "explicitly_supplied"
+    elif re.search(r"\b(?:scholarship|scholarships|student|students|study|studying|college|school|education)\b", lower):
         profile.category_interest = "education"
+        profile.field_sources["category_interest"] = "explicitly_supplied"
         if profile.occupation is None:
             profile.occupation = "student"
-    elif any(w in lower for w in ["house", "housing", "pucca makan", "awas", "home loan", "shelter"]):
+            profile.field_sources["occupation"] = "explicitly_supplied"
+    elif re.search(r"\b(?:house|housing|pucca\s+makan|awas|home\s+loan|shelter)\b", lower):
         profile.category_interest = "housing"
-    elif any(w in lower for w in ["health", "hospital", "ayushman", "medical", "treatment", "illness", "doctor"]):
+        profile.field_sources["category_interest"] = "explicitly_supplied"
+    elif re.search(r"\b(?:health|hospital|ayushman|medical|treatment|illness|doctor)\b", lower):
         profile.category_interest = "healthcare"
-    elif any(w in lower for w in ["pension", "old age", "elderly", "senior citizen", "retire"]):
+        profile.field_sources["category_interest"] = "explicitly_supplied"
+    elif re.search(r"\b(?:pension|pensions|old\s+age|elderly|senior\s+citizen|retirement)\b", lower):
         profile.category_interest = "pensions"
-    elif any(w in lower for w in ["street vendor", "thela", "hawker", "rehri", "artisan", "vishwakarma", "loan", "startup", "skill", "employment", "business", "small business"]):
+        profile.field_sources["category_interest"] = "explicitly_supplied"
+    elif re.search(r"\b(?:street\s+vendor|thela|hawker|rehri|artisan|vishwakarma|loan|startup|skill|employment|small\s+business)\b", lower):
         profile.category_interest = "employment"
+        profile.field_sources["category_interest"] = "explicitly_supplied"
 
-    # 3. Specific occupations
-    if any(w in lower for w in ["street vendor", "vendor", "hawker", "rehri", "thelawala"]):
+    # Step 4: Specific Occupations (Strict word boundaries)
+    if re.search(r"\b(?:street\s+vendor|vendor|hawker|rehri|thelawala)\b", lower):
         profile.occupation = "street_vendor"
         profile.residence = profile.residence or "urban"
-    elif any(w in lower for w in ["artisan", "craftsperson", "carpenter", "blacksmith", "goldsmith", "potter", "sculptor", "tailor", "cobbler"]):
+        profile.field_sources["occupation"] = "explicitly_supplied"
+    elif re.search(r"\b(?:artisan|craftsperson|carpenter|blacksmith|goldsmith|potter|sculptor|tailor|cobbler)\b", lower):
         profile.occupation = "artisan"
-    elif any(w in lower for w in ["farmer", "kisan", "cultivator", "peasant"]):
+        profile.field_sources["occupation"] = "explicitly_supplied"
+    elif re.search(r"\b(?:farmer|farmers|kisan|cultivator|cultivators|peasant)\b", lower):
         profile.occupation = "farmer"
-    elif any(w in lower for w in ["student", "studying", "undergraduate", "postgraduate", "scholar"]):
+        profile.field_sources["occupation"] = "explicitly_supplied"
+    elif re.search(r"\b(?:student|students|studying|undergraduate|postgraduate|scholar)\b", lower):
         profile.occupation = "student"
-    elif any(w in lower for w in ["unorganized", "daily wage", "laborer", "labourer", "construction worker", "maid", "driver"]):
+        profile.field_sources["occupation"] = "explicitly_supplied"
+    elif re.search(r"\b(?:unorganized|daily\s+wage|laborer|labourer|construction\s+worker|maid|driver)\b", lower):
         profile.occupation = "unorganized_worker"
+        profile.field_sources["occupation"] = "explicitly_supplied"
 
-    # 4. Residence
-    if any(w in lower for w in ["village", "rural", "gaon", "dehat", "gramin", "gram"]):
+    # If occupation shifted during follow-up, remove incompatible old fields
+    if is_follow_up and existing_profile and existing_profile.occupation != profile.occupation:
+        if profile.occupation == "farmer":
+            profile.field_of_study = None
+            profile.field_sources.pop("field_of_study", None)
+            profile.current_degree_status = None
+            profile.field_sources.pop("current_degree_status", None)
+            profile.marks_percentage = None
+            profile.field_sources.pop("marks_percentage", None)
+        elif profile.occupation == "student":
+            profile.is_landholder = None
+            profile.field_sources.pop("is_landholder", None)
+            profile.landholding_ha = None
+            profile.field_sources.pop("landholding_ha", None)
+
+    # Step 5: Residence (Rural / Urban)
+    if re.search(r"\b(?:village|rural|gaon|dehat|gramin|gram)\b", lower):
         profile.residence = "rural"
-    elif any(w in lower for w in ["city", "urban", "town", "metro", "municipal"]):
+        profile.field_sources["residence"] = "explicitly_supplied"
+    elif re.search(r"\b(?:city|urban|town|metro|municipal)\b", lower):
         profile.residence = "urban"
+        profile.field_sources["residence"] = "explicitly_supplied"
 
-    # 5. State
+    # Step 6: State / Union Territory (Strict boundaries; no accidental 'up' preposition match)
     for state in INDIAN_STATES:
-        if state in lower:
+        if re.search(r"\b" + re.escape(state) + r"\b", lower):
             profile.state = state.title()
+            profile.field_sources["state"] = "explicitly_supplied"
             break
-    # Common abbreviations
-    if not profile.state:
-        if re.search(r"\bup\b", lower):
-            profile.state = "Uttar Pradesh"
-        elif re.search(r"\bmp\b", lower):
-            profile.state = "Madhya Pradesh"
-        elif re.search(r"\bmh\b", lower):
-            profile.state = "Maharashtra"
-        elif re.search(r"\btn\b", lower):
-            profile.state = "Tamil Nadu"
-        elif re.search(r"\brj\b", lower):
-            profile.state = "Rajasthan"
 
-    # 6. Age
-    age_match = re.search(r"\b(?:i am|age is|age|aged|am)\s*([0-9]{1,2})\s*(?:years|yrs|year)?\s*(?:old)?\b", lower)
+    if not profile.state or profile.get_source("state") != "explicitly_supplied":
+        if re.search(r"\b(?:in\s+up|from\s+up|of\s+up|uttar\s+pradesh|u\.p\.)\b", lower) or re.search(r"\bup\s+(?:state|govt|government|board|citizen|resident|domicile)\b", lower):
+            profile.state = "Uttar Pradesh"
+            profile.field_sources["state"] = "explicitly_supplied"
+        elif re.search(r"\b(?:in\s+mp|from\s+mp|of\s+mp|madhya\s+pradesh|m\.p\.)\b", lower) or re.search(r"\bmp\s+(?:state|govt|government|board|citizen|resident)\b", lower):
+            profile.state = "Madhya Pradesh"
+            profile.field_sources["state"] = "explicitly_supplied"
+        elif re.search(r"\b(?:in\s+mh|from\s+mh|of\s+mh|maharashtra)\b", lower) or re.search(r"\bmh\s+(?:state|govt|government|board|citizen|resident)\b", lower):
+            profile.state = "Maharashtra"
+            profile.field_sources["state"] = "explicitly_supplied"
+        elif re.search(r"\b(?:in\s+tn|from\s+tn|of\s+tn|tamil\s+nadu)\b", lower) or re.search(r"\btn\s+(?:state|govt|government|board|citizen|resident)\b", lower):
+            profile.state = "Tamil Nadu"
+            profile.field_sources["state"] = "explicitly_supplied"
+        elif re.search(r"\b(?:in\s+rj|from\s+rj|of\s+rj|rajasthan)\b", lower) or re.search(r"\brj\s+(?:state|govt|government|board|citizen|resident)\b", lower):
+            profile.state = "Rajasthan"
+            profile.field_sources["state"] = "explicitly_supplied"
+
+    # Step 7: Age (Strict pattern avoiding class 10/12 false positives)
+    age_match = re.search(r"\b(?:i am|age is|age|aged|am)\s+([0-9]{1,2})\s*[-–\s]*(?:years?|yrs?)?\s*[-–\s]*old\b", lower)
+    if not age_match:
+        age_match = re.search(r"\b([0-9]{1,2})\s*[-–\s]*(?:years?|yrs?)\s*[-–\s]*old\b", lower)
+    if not age_match:
+        age_match = re.search(r"\b(?:age is|age of|aged)\s+([0-9]{1,2})\b", lower)
+    if not age_match:
+        age_match = re.search(r"\b(?:i am|am)\s+([0-9]{1,2})\s*(?:,|\band\b|\blive\b|\bstudying\b|\bstudent\b|\bfarmer\b|\byears?\b|\byrs?\b)", lower)
+
     if age_match:
         try:
             val = int(age_match.group(1))
-            if 0 < val <= 120:
+            if 1 <= val <= 120:
                 profile.age = val
+                profile.field_sources["age"] = "explicitly_supplied"
         except ValueError:
             pass
-    elif not profile.age:
-        alt_match = re.search(r"\b([0-9]{1,2})\s*(?:years old|yrs old|year old)\b", lower)
-        if alt_match:
-            try:
-                val = int(alt_match.group(1))
-                if 0 < val <= 120:
-                    profile.age = val
-            except ValueError:
-                pass
 
-    # 7. Annual Income
+    # Step 8: Annual Income
     income_match = re.search(r"(?:income|earning|salary)(?:\s*(?:is|around|of|upto|less than|under)?\s*)?(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]+)?)\s*(lakh|lac|lpa|thousand|k)?", lower)
     if income_match:
         val = float(income_match.group(1))
@@ -236,56 +300,74 @@ def extract_profile_from_text(text: str, existing_profile: Optional[ApplicantPro
             profile.annual_income = val * 1000.0
         else:
             profile.annual_income = val
+        profile.field_sources["annual_income"] = "explicitly_supplied"
     else:
         lakh_match = re.search(r"\b([0-9]+(?:\.[0-9]+)?)\s*(?:lakh|lac|lpa)\b", lower)
         if lakh_match and ("income" in lower or "earn" in lower or "salary" in lower or "family" in lower):
             profile.annual_income = float(lakh_match.group(1)) * 100000.0
+            profile.field_sources["annual_income"] = "explicitly_supplied"
 
-    # 8. Education Level & Field of Study
-    if any(w in lower for w in ["post graduate", "pg", "masters", "msc", "mcom", "ma", "mtech", "mba", "m.e"]):
+    # Step 9: Education Level (Strict word boundaries)
+    if re.search(r"\b(?:post\s+graduate|post-graduate|masters|msc|m\.sc|mcom|m\.com|mtech|m\.tech|mba|m\.a)\b", lower):
         profile.education_level = "post_graduate"
-    elif any(w in lower for w in ["graduate", "degree", "graduation", "bsc", "bcom", "ba", "btech", "b.tech", "college", "bca", "bba"]):
+        profile.field_sources["education_level"] = "explicitly_supplied"
+    elif re.search(r"\b(?:graduate|bachelor|degree|graduation|bsc|b\.sc|bcom|b\.com|btech|b\.tech|b\.e|bca|bba|college|university)\b", lower):
         profile.education_level = "graduate"
-    elif any(w in lower for w in ["12th", "12 pass", "class 12", "intermediate", "higher secondary"]):
+        profile.field_sources["education_level"] = "explicitly_supplied"
+    elif re.search(r"\b(?:12th|12\s+pass|class\s+12|intermediate|higher\s+secondary)\b", lower):
         profile.education_level = "class_12_pass"
-    elif any(w in lower for w in ["10th", "10 pass", "class 10", "matric", "high school", "secondary"]):
+        profile.field_sources["education_level"] = "explicitly_supplied"
+    elif re.search(r"\b(?:10th|10\s+pass|class\s+10|matric|high\s+school|secondary)\b", lower):
         profile.education_level = "class_10_pass"
-    elif any(w in lower for w in ["8th", "8 pass", "class 8", "middle school"]):
+        profile.field_sources["education_level"] = "explicitly_supplied"
+    elif re.search(r"\b(?:8th|8\s+pass|class\s+8|middle\s+school)\b", lower):
         profile.education_level = "class_8_pass"
+        profile.field_sources["education_level"] = "explicitly_supplied"
 
-    # Field of Study
-    if any(w in lower for w in ["computer science", "cs", "information technology", "it", "software"]):
+    # Step 10: Field of Study (Academic disciplines; never match 'it' inside 'benefits', 'credit', etc.)
+    # Only assign academic field if explicitly stated in text
+    if re.search(r"\b(?:computer\s+science|information\s+technology|software\s+engineering|software\s+development)\b", lower) or re.search(r"\b(?:b\.?tech|degree|study|studying|major|diploma)\s+(?:in\s+)?(?:cs|it)\b", lower):
         profile.field_of_study = "computer_science"
-    elif any(w in lower for w in ["engineering", "btech", "b.tech", "b.e", "mechanical", "electrical", "civil"]):
+        profile.field_sources["field_of_study"] = "explicitly_supplied"
+    elif re.search(r"\b(?:mechanical|electrical|civil|aerospace|chemical)\s+engineering\b", lower) or re.search(r"\b(?:engineering|b\.?tech|b\.?e)\b", lower):
         profile.field_of_study = "engineering"
-    elif any(w in lower for w in ["public policy", "governance", "policy", "political science"]):
+        profile.field_sources["field_of_study"] = "explicitly_supplied"
+    elif re.search(r"\b(?:public\s+policy|governance|political\s+science)\b", lower):
         profile.field_of_study = "public_policy"
-    elif any(w in lower for w in ["economics", "economy", "econometrics"]):
+        profile.field_sources["field_of_study"] = "explicitly_supplied"
+    elif re.search(r"\b(?:economics|econometrics|b\.?a\.?\s+economics|m\.?a\.?\s+economics)\b", lower):
         profile.field_of_study = "economics"
-    elif any(w in lower for w in ["commerce", "bcom", "b.com", "accounting", "finance"]):
+        profile.field_sources["field_of_study"] = "explicitly_supplied"
+    elif re.search(r"\b(?:commerce|b\.?com|accounting|chartered\s+accountan(?:cy|t))\b", lower):
         profile.field_of_study = "commerce"
-    elif any(w in lower for w in ["agriculture", "bsc agri", "agricultural"]):
+        profile.field_sources["field_of_study"] = "explicitly_supplied"
+    elif re.search(r"\b(?:bsc\s+agri(?:culture)?|agricultural\s+science|agronomy|degree\s+in\s+agriculture)\b", lower):
         profile.field_of_study = "agriculture"
-    elif any(w in lower for w in ["law", "llb", "legal"]):
+        profile.field_sources["field_of_study"] = "explicitly_supplied"
+    elif re.search(r"\b(?:ll\.?b|b\.?a\.?\s+ll\.?b|law\s+degree|legal\s+studies)\b", lower):
         profile.field_of_study = "law"
+        profile.field_sources["field_of_study"] = "explicitly_supplied"
 
-    # Degree status
-    if any(w in lower for w in ["pursuing", "enrolled", "studying in", "2nd year", "second year", "3rd year", "final year", "in college", "student"]):
+    # Step 11: Degree Status
+    if re.search(r"\b(?:pursuing|enrolled|studying\s+in|2nd\s+year|second\s+year|3rd\s+year|final\s+year)\b", lower):
         profile.current_degree_status = "pursuing"
-    elif any(w in lower for w in ["graduated", "completed", "passed out", "fresh graduate", "recent graduate"]):
+        profile.field_sources["current_degree_status"] = "explicitly_supplied"
+    elif re.search(r"\b(?:graduated|completed\s+degree|passed\s+out|fresh\s+graduate|recent\s+graduate)\b", lower):
         profile.current_degree_status = "fresh_graduate"
+        profile.field_sources["current_degree_status"] = "explicitly_supplied"
 
-    # Marks Percentage
+    # Step 12: Marks Percentage
     marks_match = re.search(r"\b([0-9]{2}(?:\.[0-9]+)?)\s*(?:%|percent|percentage)\b", lower)
     if marks_match:
         try:
             p_val = float(marks_match.group(1))
             if 30.0 <= p_val <= 100.0:
                 profile.marks_percentage = p_val
+                profile.field_sources["marks_percentage"] = "explicitly_supplied"
         except ValueError:
             pass
 
-    # Skills extraction
+    # Step 13: Skills extraction (Strict word boundaries)
     skills_map = {
         "python": "python",
         "data analysis": "data_analysis",
@@ -298,33 +380,33 @@ def extract_profile_from_text(text: str, existing_profile: Optional[ApplicantPro
         "policy analysis": "policy_analysis",
         "web development": "web_development",
         "machine learning": "machine_learning",
-        "ai": "machine_learning",
         "urban planning": "urban_planning",
     }
     for phrase, skill_key in skills_map.items():
         if re.search(rf"\b{re.escape(phrase)}\b", lower):
             if skill_key not in profile.skills:
                 profile.skills.append(skill_key)
+                profile.field_sources["skills"] = "explicitly_supplied"
 
-    # 9. Caste Category
+    # Step 14: Caste Category (Strict word boundaries)
     if re.search(r"\b(sc|scheduled caste)\b", lower):
         profile.caste_category = "SC"
+        profile.field_sources["caste_category"] = "explicitly_supplied"
     elif re.search(r"\b(st|scheduled tribe)\b", lower):
         profile.caste_category = "ST"
+        profile.field_sources["caste_category"] = "explicitly_supplied"
     elif re.search(r"\b(obc|other backward class)\b", lower):
         profile.caste_category = "OBC"
+        profile.field_sources["caste_category"] = "explicitly_supplied"
     elif re.search(r"\b(ews|economically weaker section)\b", lower):
         profile.caste_category = "EWS"
+        profile.field_sources["caste_category"] = "explicitly_supplied"
     elif re.search(r"\b(general category|general caste|unreserved)\b", lower):
         profile.caste_category = "General"
+        profile.field_sources["caste_category"] = "explicitly_supplied"
 
-    # 10. Landholding
-    if any(w in lower for w in ["own land", "have land", "landowner", "landholder", "have farm", "my land"]):
-        profile.is_landholder = True
-    elif any(w in lower for w in ["landless", "no land", "don't own land", "tenant farmer", "sharecropper"]):
-        profile.is_landholder = False
-
-    land_match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:hectare|ha|acres?)\b", lower)
+    # Step 15: Landholding
+    land_match = re.search(r"\b([0-9]+(?:\.[0-9]+)?)\s*(?:hectares?|ha|acres?)\b", lower)
     if land_match:
         val = float(land_match.group(1))
         if "acre" in lower:
@@ -332,24 +414,39 @@ def extract_profile_from_text(text: str, existing_profile: Optional[ApplicantPro
         else:
             profile.landholding_ha = val
         profile.is_landholder = True
+        profile.field_sources["landholding_ha"] = "explicitly_supplied"
+        profile.field_sources["is_landholder"] = "explicitly_supplied"
+    elif re.search(r"\b(?:own\s+land|have\s+land|landowner|landholder|have\s+farm|my\s+land|own\s+farm)\b", lower):
+        profile.is_landholder = True
+        profile.field_sources["is_landholder"] = "explicitly_supplied"
+    elif re.search(r"\b(?:landless|no\s+land|don't\s+own\s+land|tenant\s+farmer|sharecropper)\b", lower):
+        profile.is_landholder = False
+        profile.field_sources["is_landholder"] = "explicitly_supplied"
 
-    # 11. Gender & Maternity
-    if any(w in lower for w in ["pregnant", "pregnancy", "expecting mother", "lactating"]):
+    # Step 16: Gender & Maternity
+    if re.search(r"\b(?:pregnant|pregnancy|expecting\s+mother|lactating)\b", lower):
         profile.gender = "female"
         profile.is_pregnant_or_lactating = True
-    elif any(w in lower for w in ["female", "woman", "girl", "mother", "daughter", "lady"]):
+        profile.field_sources["gender"] = "explicitly_supplied"
+        profile.field_sources["is_pregnant_or_lactating"] = "explicitly_supplied"
+    elif re.search(r"\b(?:female|woman|girl|mother|daughter|lady)\b", lower):
         profile.gender = "female"
-    elif any(w in lower for w in ["male", "man", "boy", "son", "gentleman"]):
+        profile.field_sources["gender"] = "explicitly_supplied"
+    elif re.search(r"\b(?:male|man|boy|son|gentleman)\b", lower):
         profile.gender = "male"
+        profile.field_sources["gender"] = "explicitly_supplied"
 
-    # 12. BPL / Ration Card
-    if any(w in lower for w in ["bpl", "below poverty line", "antyodaya", "aay card", "bpl card"]):
+    # Step 17: BPL / Ration Card
+    if re.search(r"\b(?:bpl|below\s+poverty\s+line|antyodaya|aay\s+card|bpl\s+card)\b", lower):
         profile.is_bpl = True
+        profile.field_sources["is_bpl"] = "explicitly_supplied"
 
-    # 13. Income Tax Payer
-    if any(w in lower for w in ["pay tax", "income tax payer", "pay income tax", "taxpayer"]):
+    # Step 18: Income Tax Payer
+    if re.search(r"\b(?:pay\s+tax|income\s+tax\s+payer|pay\s+income\s+tax|taxpayer)\b", lower):
         profile.is_taxpayer = True
-    elif any(w in lower for w in ["don't pay tax", "non taxpayer", "no income tax"]):
+        profile.field_sources["is_taxpayer"] = "explicitly_supplied"
+    elif re.search(r"\b(?:don't\s+pay\s+tax|non\s+taxpayer|no\s+income\s+tax)\b", lower):
         profile.is_taxpayer = False
+        profile.field_sources["is_taxpayer"] = "explicitly_supplied"
 
     return profile
