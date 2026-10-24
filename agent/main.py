@@ -24,6 +24,7 @@ from uagents_core.contrib.protocols.chat import (
     ChatMessage,
     ChatAcknowledgement,
     StartSessionContent,
+    EndSessionContent,
     TextContent,
     chat_protocol_spec,
 )
@@ -71,11 +72,8 @@ agent_kwargs = {
     "name": AGENT_NAME,
     "seed": AGENT_SEED_PHRASE,
     "port": AGENT_PORT,
+    "mailbox": True,
 }
-if AGENT_MAILBOX_KEY:
-    agent_kwargs["mailbox"] = f"{AGENT_MAILBOX_KEY}@https://agentverse.ai"
-else:
-    agent_kwargs["mailbox"] = False
 
 agent = Agent(**agent_kwargs)
 
@@ -88,43 +86,87 @@ async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
     """Handle incoming citizen messages via ACP and reply through orchestrator."""
     ctx.logger.info(f"Received chat message from {sender} (id={msg.msg_id})")
 
-    # Acknowledge receipt
-    await ctx.send(
-        sender,
-        ChatAcknowledgement(
-            timestamp=datetime.now(timezone.utc),
-            acknowledged_msg_id=msg.msg_id,
-        ),
+    # 1. Acknowledge receipt as per Agent Chat Protocol v0.3.0
+    try:
+        await ctx.send(
+            sender,
+            ChatAcknowledgement(
+                timestamp=datetime.now(timezone.utc),
+                acknowledged_msg_id=msg.msg_id,
+            ),
+        )
+    except Exception as ack_err:
+        ctx.logger.warning(f"Failed to dispatch ChatAcknowledgement: {ack_err}")
+
+    # 2. Check for session control signals (ACP Start/End session)
+    is_start_session = any(
+        isinstance(c, StartSessionContent) or getattr(c, "type", None) == "start-session"
+        for c in msg.content
+    )
+    is_end_session = any(
+        isinstance(c, EndSessionContent) or getattr(c, "type", None) == "end-session"
+        for c in msg.content
     )
 
-    # Check for session startup / greet
-    if any(isinstance(c, StartSessionContent) for c in msg.content):
-        ctx.logger.info("New session started; sending welcome greeting")
-        reply = await orchestrator.handle_citizen_message(sender, "hello")
-        await ctx.send(sender, reply)
+    if is_end_session:
+        ctx.logger.info(f"End session received from {sender}; clearing session state")
+        orchestrator.clear_session(sender)
         return
 
-    # Extract user text
-    text_items = [c.text for c in msg.content if isinstance(c, TextContent) and c.text]
-    user_query = " ".join(text_items).strip()
+    # If this is a new session start, reset session state so prior conversation profile is not leaked
+    if is_start_session:
+        ctx.logger.info(f"New session signaled from {sender}; initializing fresh session state")
+        orchestrator.reset_session(sender)
 
+    # 3. Robust user text extraction
+    # A ChatMessage can contain StartSessionContent AND TextContent (e.g. from Agentverse web chat).
+    # We must extract all text items rather than dropping the text when a start-session signal is present.
+    text_parts: list[str] = []
+    for item in msg.content:
+        if isinstance(item, TextContent):
+            if item.text and item.text.strip():
+                text_parts.append(item.text.strip())
+        elif getattr(item, "type", None) == "text" and hasattr(item, "text"):
+            val = str(getattr(item, "text", "")).strip()
+            if val:
+                text_parts.append(val)
+        elif hasattr(item, "text") and isinstance(item.text, str) and item.text.strip():
+            text_parts.append(item.text.strip())
+
+    user_query = " ".join(text_parts).strip()
+
+    # Fallback to msg.text() if available
+    if not user_query and hasattr(msg, "text") and callable(msg.text):
+        try:
+            user_query = msg.text().strip()
+        except Exception:
+            pass
+
+    # 4. If message has NO text:
     if not user_query:
-        ctx.logger.debug("Received empty text content; skipping")
+        if is_start_session:
+            # Empty session initiation handshake: deliver welcome greeting
+            ctx.logger.info(f"Sending welcome greeting to {sender} for empty session start")
+            reply = await orchestrator.handle_citizen_message(sender, "hello")
+            await ctx.send(sender, reply)
+            return
+        ctx.logger.debug(f"Received empty text content from {sender}; skipping")
         return
 
+    # 5. Process user query through orchestrator and dispatch contextually relevant response
     ctx.logger.info(f"Processing query from {sender}: {user_query}")
     try:
         reply_message = await orchestrator.handle_citizen_message(sender, user_query)
         await ctx.send(sender, reply_message)
         ctx.logger.info(f"Dispatched reply message to {sender}")
     except Exception as e:
-        ctx.logger.exception(f"Error handling message: {e}")
+        ctx.logger.exception(f"Error handling message from {sender}: {e}")
         fallback = ChatMessage(
             timestamp=datetime.now(timezone.utc),
             content=[
                 TextContent(
                     type="text",
-                    text=f"An unexpected error occurred while assessing schemes: {e}. Please try again shortly.",
+                    text=f"CivicBridge encountered an unexpected issue while assessing schemes: {e}. Please try again shortly.",
                 )
             ],
         )

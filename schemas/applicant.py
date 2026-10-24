@@ -81,8 +81,9 @@ class ApplicantProfile(BaseModel):
             or self.occupation
             or self.age
             or self.residence
+            or self.state
             or self.education_level
-            or self.opportunity_interest in ("internships", "both")
+            or self.opportunity_interest in ("internships", "schemes", "both")
         )
 
     def missing_fields_for_category(self) -> list[str]:

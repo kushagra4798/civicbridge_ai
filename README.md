@@ -3,7 +3,7 @@
 [![Fetch.ai uAgents](https://img.shields.io/badge/Fetch.ai-uAgents_v0.26-blue)](https://github.com/fetchai/uAgents)
 [![Agent Chat Protocol](https://img.shields.io/badge/ACP-v0.3.0-green)](https://github.com/fetchai/uAgents)
 [![ASI:One Compatible](https://img.shields.io/badge/ASI:One-Dynamic_UI-orange)](https://asi1.ai/)
-[![Test Suite](https://img.shields.io/badge/Tests-33%2F33_Passing-brightgreen)](tests/)
+[![Test Suite](https://img.shields.io/badge/Tests-41%2F41_Passing-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **CivicBridge** is an autonomous AI agent built on Fetch.ai uAgents, the Agent Chat Protocol (ACP v0.3.0), and ASI:One that serves as an intelligent government benefits and opportunity navigator for India.
@@ -200,7 +200,8 @@ The test suite validates scheme discovery, internship matching, deterministic ru
 python -m pytest -v
 ```
 
-**Test Suite Coverage (33/33 passing in <0.3s)**:
+**Test Suite Coverage (41/41 passing in <2s)**:
+- `tests/test_acp_handler.py` (8 tests): ACP protocol message handling, StartSessionContent extraction, session state reset & isolation, error resilience, and distinct prompt-response flows.
 - `tests/test_discovery.py` (6 tests): Category filtering, urban/rural residence filtering, empty search fallbacks, scheme ID retrieval.
 - `tests/test_internships.py` (5 tests): Internship discovery, host type classification (Govt vs Portal), stipend retrieval, work mode, and field of study filtering.
 - `tests/test_growth_planner.py` (3 tests): Gap category classification, high-leverage action identification, statutory fixed condition handling.

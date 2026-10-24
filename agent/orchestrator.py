@@ -67,6 +67,15 @@ class CivicBridgeOrchestrator:
             self._sessions[sender_id] = UserSession(sender_id)
         return self._sessions[sender_id]
 
+    def reset_session(self, sender_id: str) -> UserSession:
+        """Clear and re-initialize session state for a citizen."""
+        self._sessions[sender_id] = UserSession(sender_id)
+        return self._sessions[sender_id]
+
+    def clear_session(self, sender_id: str) -> None:
+        """Remove a citizen session."""
+        self._sessions.pop(sender_id, None)
+
     def _parse_card_action(self, text: str) -> Optional[Dict[str, str]]:
         """Parse card selection JSON or prose forwarded by chat UI."""
         stripped = text.strip()
@@ -310,37 +319,59 @@ class CivicBridgeOrchestrator:
         # Check if user mentioned a specific scheme or internship short_name to view details
         lower = text.lower().strip()
         matched_eval = None
-        if session.last_evaluations:
-            for item in session.last_evaluations:
-                if (
-                    item.short_name.lower() in lower
-                    or item.scheme_id.lower() in lower
-                    or (item.short_name.lower().replace("-", " ") in lower)
-                    or (item.short_name.lower().replace(" ", "-") in lower)
-                ):
-                    matched_eval = item
-                    break
 
-        if not matched_eval and len(lower) >= 3:
-            all_schemes = self.discovery.search_tool.repository.list_all()
-            for s in all_schemes:
-                if (
-                    s.short_name.lower() == lower
-                    or s.scheme_id.lower() == lower
-                    or s.short_name.lower() in lower
-                    or (len(lower) >= 5 and lower in s.name.lower())
-                ):
-                    eval_res = self.eligibility.evaluate_scheme(s, session.profile)
-                    matched_eval = self.verification.verify_and_annotate(s, eval_res)
-                    break
+        GENERIC_DISCOVERY_WORDS = {
+            "scheme", "schemes", "internship", "internships", "scholarship", "scholarships",
+            "yojana", "benefit", "benefits", "assistance", "government", "welfare",
+            "program", "programs", "opportunity", "opportunities", "student", "farmer",
+            "aid", "grant", "grants", "loan", "loans", "pension", "pensions", "financial aid",
+            "government schemes", "government benefits", "all schemes", "show schemes"
+        }
 
-        if matched_eval:
-            plan = self.planner.generate_plan(matched_eval, session.profile)
-            markdown = self._format_scheme_detail_markdown(plan)
-            return create_scheme_detail_chat_message(markdown, plan)
+        # Do not match single scheme drilldowns on broad category inquiries
+        if lower not in GENERIC_DISCOVERY_WORDS:
+            if session.last_evaluations:
+                for item in session.last_evaluations:
+                    pattern = r"\b" + re.escape(item.short_name.lower()) + r"\b"
+                    pattern_spaced = r"\b" + re.escape(item.short_name.lower().replace("-", " ")) + r"\b"
+                    pattern_id = r"\b" + re.escape(item.scheme_id.lower()) + r"\b"
+                    if (
+                        item.short_name.lower() == lower
+                        or item.scheme_id.lower() == lower
+                        or re.search(pattern, lower)
+                        or re.search(pattern_spaced, lower)
+                        or re.search(pattern_id, lower)
+                    ):
+                        matched_eval = item
+                        break
 
-        # 2. Greeting or help request
-        if lower in ("hi", "hello", "namaste", "help", "start", "/start"):
+            if not matched_eval and len(lower) >= 3:
+                all_schemes = self.discovery.search_tool.repository.list_all()
+                for s in all_schemes:
+                    pattern = r"\b" + re.escape(s.short_name.lower()) + r"\b"
+                    pattern_spaced = r"\b" + re.escape(s.short_name.lower().replace("-", " ")) + r"\b"
+                    pattern_id = r"\b" + re.escape(s.scheme_id.lower()) + r"\b"
+                    if (
+                        s.short_name.lower() == lower
+                        or s.scheme_id.lower() == lower
+                        or re.search(pattern, lower)
+                        or re.search(pattern_spaced, lower)
+                        or re.search(pattern_id, lower)
+                        or (len(lower) >= 8 and lower in s.name.lower())
+                    ):
+                        eval_res = self.eligibility.evaluate_scheme(s, session.profile)
+                        matched_eval = self.verification.verify_and_annotate(s, eval_res)
+                        break
+
+            if matched_eval:
+                plan = self.planner.generate_plan(matched_eval, session.profile)
+                markdown = self._format_scheme_detail_markdown(plan)
+                return create_scheme_detail_chat_message(markdown, plan)
+
+        # 2. Greeting or help request / session restart
+        if lower in ("hi", "hello", "namaste", "help", "start", "/start", "restart", "reset"):
+            if lower in ("start", "/start", "restart", "reset"):
+                self.reset_session(sender_id)
             welcome = (
                 "👋 **Namaste! Welcome to CivicBridge — your AI Government Benefits & Opportunity Navigator.**\n\n"
                 "I help Indian citizens discover, qualify for, and grow into:\n"
