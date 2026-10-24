@@ -390,6 +390,23 @@
     "target_residence": "all",
     "rules": [
       {
+        "rule_name": "target_school_stage",
+        "description": "Must be currently studying in secondary school (Classes IX to XII) in a Government or Govt-aided school",
+        "rule_type": "education_level",
+        "parameters": {
+          "allowed_levels": [
+            "class_8_pass",
+            "class_10_pass"
+          ],
+          "disallowed_levels": [
+            "undergraduate",
+            "graduate",
+            "post_graduate"
+          ],
+          "stage": "secondary_school"
+        }
+      },
+      {
         "rule_name": "occupation_student",
         "description": "Applicant must be a student currently studying in secondary school",
         "rule_type": "occupation",

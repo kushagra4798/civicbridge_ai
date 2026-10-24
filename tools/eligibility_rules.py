@@ -14,8 +14,9 @@ EDUCATION_RANK = {
     "class_8_pass": 1,
     "class_10_pass": 2,
     "class_12_pass": 3,
-    "graduate": 4,
-    "post_graduate": 5,
+    "undergraduate": 4,
+    "graduate": 5,
+    "post_graduate": 6,
 }
 
 
@@ -238,6 +239,44 @@ def evaluate_rule(rule: EligibilityRule, profile: ApplicantProfile) -> RuleEvalu
             description=desc,
             status="NOT_MET",
             reason=f"Education level ({profile.education_level.replace('_', ' ')}) is below required {min_level.replace('_', ' ')}.",
+        )
+
+    # 8B. EDUCATION LEVEL / STAGE ELIGIBILITY
+    if r_type == "education_level":
+        allowed_levels = params.get("allowed_levels", [])
+        disallowed_levels = params.get("disallowed_levels", [])
+        stage = params.get("stage", "")
+
+        if profile.education_level is None:
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="UNKNOWN",
+                reason=f"Current school/college enrollment level is not specified; requires {', '.join(allowed_levels) or stage or 'secondary school'}.",
+            )
+
+        if profile.education_level in disallowed_levels:
+            stage_desc = f" ({stage})" if stage else ""
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="NOT_MET",
+                reason=f"Applicant is currently enrolled at {profile.education_level.replace('_', ' ')} level; scheme is restricted to {', '.join(allowed_levels) or stage_desc}.",
+            )
+
+        if profile.education_level in allowed_levels or not allowed_levels:
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="MET",
+                reason=f"Applicant education level ({profile.education_level.replace('_', ' ')}) satisfies target enrollment criteria.",
+            )
+
+        return RuleEvaluationResult(
+            rule_name=r_name,
+            description=desc,
+            status="NOT_MET",
+            reason=f"Education level ({profile.education_level.replace('_', ' ')}) does not match allowed levels ({', '.join(allowed_levels)}).",
         )
 
     # 9. DISQUALIFYING CRITERIA (Income tax, existing pucca house)

@@ -20,6 +20,7 @@ class EligibilityRule(BaseModel):
         "landholding_max",
         "is_landholder",
         "education_min",
+        "education_level",
         "field_of_study",
         "skills",
         "marks_minimum",

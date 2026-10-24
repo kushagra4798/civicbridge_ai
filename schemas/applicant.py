@@ -24,7 +24,7 @@ class ApplicantProfile(BaseModel):
     )
     education_level: Optional[str] = Field(
         None,
-        description="Highest completed level: none, class_8_pass, class_10_pass, class_12_pass, graduate, post_graduate",
+        description="Highest completed or current level: none, class_8_pass, class_10_pass, class_12_pass, undergraduate, graduate, post_graduate",
     )
     gender: Optional[Literal["male", "female", "transgender", "other"]] = Field(
         None, description="Gender of the applicant"
@@ -217,7 +217,7 @@ def extract_profile_from_text(
     elif re.search(r"\b(?:farmer|farmers|kisan|cultivator|cultivators|peasant)\b", lower):
         profile.occupation = "farmer"
         profile.field_sources["occupation"] = "explicitly_supplied"
-    elif re.search(r"\b(?:student|students|studying|undergraduate|postgraduate|scholar)\b", lower):
+    elif re.search(r"\b(?:student|students|studying|undergraduate|postgraduate|scholar|college\s+student|currently\s+in\s+[1-4]|in\s+[1-4](?:st|nd|rd|th)\s+year|in\s+2nd\s+year|in\s+3rd\s+year|in\s+1st\s+year|in\s+4th\s+year)\b", lower):
         profile.occupation = "student"
         profile.field_sources["occupation"] = "explicitly_supplied"
     elif re.search(r"\b(?:unorganized|daily\s+wage|laborer|labourer|construction\s+worker|maid|driver)\b", lower):
@@ -289,45 +289,94 @@ def extract_profile_from_text(
         except ValueError:
             pass
 
-    # Step 8: Annual Income
-    income_match = re.search(r"(?:income|earning|salary)(?:\s*(?:is|around|of|upto|less than|under)?\s*)?(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]+)?)\s*(lakh|lac|lpa|thousand|k)?", lower)
+    # Step 8: Annual Income (Handles colons, commas e.g. ₹2,40,000, 2.4 lakh, 2.4 LPA, Rs. 2,40,000)
+    income_match = re.search(
+        r"(?:family\s+)?(?:annual\s+)?(?:income|earning|salary)\s*[:=–-]?\s*(?:is|around|of|upto|less than|under)?\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:,[0-9]+)*(?:\.[0-9]+)?)\s*(lakh|lac|lpa|crore|thousand|k)?",
+        lower,
+    )
     if income_match:
-        val = float(income_match.group(1))
+        raw_num = income_match.group(1).replace(",", "").strip()
         unit = income_match.group(2)
-        if unit in ("lakh", "lac", "lpa"):
-            profile.annual_income = val * 100000.0
-        elif unit in ("thousand", "k"):
-            profile.annual_income = val * 1000.0
-        else:
-            profile.annual_income = val
-        profile.field_sources["annual_income"] = "explicitly_supplied"
-    else:
-        lakh_match = re.search(r"\b([0-9]+(?:\.[0-9]+)?)\s*(?:lakh|lac|lpa)\b", lower)
-        if lakh_match and ("income" in lower or "earn" in lower or "salary" in lower or "family" in lower):
-            profile.annual_income = float(lakh_match.group(1)) * 100000.0
+        try:
+            val = float(raw_num)
+            if unit in ("lakh", "lac", "lpa"):
+                profile.annual_income = val * 100000.0
+            elif unit == "crore":
+                profile.annual_income = val * 10000000.0
+            elif unit in ("thousand", "k"):
+                profile.annual_income = val * 1000.0
+            else:
+                profile.annual_income = val
             profile.field_sources["annual_income"] = "explicitly_supplied"
+        except ValueError:
+            pass
+    else:
+        # Fallback 1: e.g. "₹2,40,000" or "Rs. 2,40,000" with income context
+        standalone_curr = re.search(r"\b(?:rs\.?|inr|₹)\s*([0-9]+(?:,[0-9]+)*(?:\.[0-9]+)?)\s*(lakh|lac|lpa|thousand|k)?\b", lower)
+        if standalone_curr and any(w in lower for w in ["income", "earn", "salary", "family", "annual", "rupees", "p.a", "per year"]):
+            raw_num = standalone_curr.group(1).replace(",", "").strip()
+            unit = standalone_curr.group(2)
+            try:
+                val = float(raw_num)
+                if unit in ("lakh", "lac", "lpa"):
+                    profile.annual_income = val * 100000.0
+                elif unit in ("thousand", "k"):
+                    profile.annual_income = val * 1000.0
+                else:
+                    profile.annual_income = val
+                profile.field_sources["annual_income"] = "explicitly_supplied"
+            except ValueError:
+                pass
+        else:
+            # Fallback 2: "2.4 lakh" with income context
+            lakh_match = re.search(r"\b([0-9]+(?:\.[0-9]+)?)\s*(?:lakh|lac|lpa)\b", lower)
+            if lakh_match and any(w in lower for w in ["income", "earn", "salary", "family", "rupees"]):
+                profile.annual_income = float(lakh_match.group(1)) * 100000.0
+                profile.field_sources["annual_income"] = "explicitly_supplied"
 
-    # Step 9: Education Level (Strict word boundaries)
+    # Step 9: Education Level (Strict word boundaries, Roman numerals Class VIII/X/XII, B.Sc./B.Tech)
     if re.search(r"\b(?:post\s+graduate|post-graduate|masters|msc|m\.sc|mcom|m\.com|mtech|m\.tech|mba|m\.a)\b", lower):
         profile.education_level = "post_graduate"
         profile.field_sources["education_level"] = "explicitly_supplied"
-    elif re.search(r"\b(?:graduate|bachelor|degree|graduation|bsc|b\.sc|bcom|b\.com|btech|b\.tech|b\.e|bca|bba|college|university)\b", lower):
+    elif re.search(r"\b(?:currently\s+in\s+)?(?:2nd|second|3rd|third|final|1st|first)\s+year\b", lower) and re.search(r"\b(?:b\.?sc|b\.?tech|b\.?e|bca|bba|b\.?com|b\.?a|undergraduate|college|degree)\b", lower):
+        profile.education_level = "undergraduate"
+        profile.current_degree_status = "pursuing"
+        profile.field_sources["education_level"] = "explicitly_supplied"
+        profile.field_sources["current_degree_status"] = "explicitly_supplied"
+        if not profile.occupation:
+            profile.occupation = "student"
+            profile.field_sources["occupation"] = "explicitly_supplied"
+    elif re.search(r"\b(?:undergraduate|pursuing\s+graduation|college\s+student|enrolled\s+in\s+college)\b", lower):
+        profile.education_level = "undergraduate"
+        profile.current_degree_status = "pursuing"
+        profile.field_sources["education_level"] = "explicitly_supplied"
+        profile.field_sources["current_degree_status"] = "explicitly_supplied"
+    elif re.search(r"\b(?:completed\s+graduation|graduated|passed\s+degree|bachelor\s+degree\s+holder)\b", lower):
         profile.education_level = "graduate"
         profile.field_sources["education_level"] = "explicitly_supplied"
-    elif re.search(r"\b(?:12th|12\s+pass|class\s+12|intermediate|higher\s+secondary)\b", lower):
+    elif re.search(r"\b(?:b\.?sc|bsc|bcom|b\.com|btech|b\.tech|b\.e|bca|bba|college|university)\b", lower):
+        if "pursuing" in lower or "studying" in lower or "student" in lower or "year" in lower:
+            profile.education_level = "undergraduate"
+            profile.current_degree_status = profile.current_degree_status or "pursuing"
+        else:
+            profile.education_level = "undergraduate"
+        profile.field_sources["education_level"] = "explicitly_supplied"
+    elif re.search(r"\b(?:12th|12\s+pass|class\s+12|class\s+xii|intermediate|higher\s+secondary)\b", lower):
         profile.education_level = "class_12_pass"
         profile.field_sources["education_level"] = "explicitly_supplied"
-    elif re.search(r"\b(?:10th|10\s+pass|class\s+10|matric|high\s+school|secondary)\b", lower):
+    elif re.search(r"\b(?:10th|10\s+pass|class\s+10|class\s+x|matric|high\s+school|secondary)\b", lower):
         profile.education_level = "class_10_pass"
         profile.field_sources["education_level"] = "explicitly_supplied"
-    elif re.search(r"\b(?:8th|8\s+pass|class\s+8|middle\s+school)\b", lower):
+    elif re.search(r"\b(?:8th|8\s+pass|class\s+8|class\s+viii|middle\s+school)\b", lower):
         profile.education_level = "class_8_pass"
         profile.field_sources["education_level"] = "explicitly_supplied"
 
     # Step 10: Field of Study (Academic disciplines; never match 'it' inside 'benefits', 'credit', etc.)
-    # Only assign academic field if explicitly stated in text
     if re.search(r"\b(?:computer\s+science|information\s+technology|software\s+engineering|software\s+development)\b", lower) or re.search(r"\b(?:b\.?tech|degree|study|studying|major|diploma)\s+(?:in\s+)?(?:cs|it)\b", lower):
         profile.field_of_study = "computer_science"
+        profile.field_sources["field_of_study"] = "explicitly_supplied"
+    elif re.search(r"\b(?:b\.?sc|bsc|bachelor\s+of\s+science|physics|chemistry|mathematics|math|biology|botany|zoology)\b", lower):
+        profile.field_of_study = "science"
         profile.field_sources["field_of_study"] = "explicitly_supplied"
     elif re.search(r"\b(?:mechanical|electrical|civil|aerospace|chemical)\s+engineering\b", lower) or re.search(r"\b(?:engineering|b\.?tech|b\.?e)\b", lower):
         profile.field_of_study = "engineering"
@@ -356,16 +405,34 @@ def extract_profile_from_text(
         profile.current_degree_status = "fresh_graduate"
         profile.field_sources["current_degree_status"] = "explicitly_supplied"
 
-    # Step 12: Marks Percentage
-    marks_match = re.search(r"\b([0-9]{2}(?:\.[0-9]+)?)\s*(?:%|percent|percentage)\b", lower)
-    if marks_match:
-        try:
-            p_val = float(marks_match.group(1))
-            if 30.0 <= p_val <= 100.0:
-                profile.marks_percentage = p_val
-                profile.field_sources["marks_percentage"] = "explicitly_supplied"
-        except ValueError:
-            pass
+    # Step 12: Marks Percentage (Strictly self-attributed; never fabricate from requirement statements or unprovided notices)
+    has_unprovided_marks_signal = bool(re.search(
+        r"\b(?:haven't|have\s+not|didn't|did\s+not|not)\s+(?:told|shared|given|provided|mentioned)\s+(?:you\s+)?(?:my\s+)?(?:marks|score|percentage|grades?)\b",
+        lower,
+    ) or re.search(r"\bwithout\s+(?:knowing\s+)?(?:my\s+)?(?:marks|score|percentage)\b", lower))
+
+    is_requirement_statement = bool(re.search(
+        r"\b(?:requires?|requiring|cutoff|cut-off|eligibility|criteria|minimum|need|needs|condition)\s*(?:of|is|at\s+least|min)?\s*[0-9]{2}(?:\.[0-9]+)?\s*(?:%|percent|percentage)\b",
+        lower,
+    ))
+
+    if not has_unprovided_marks_signal and not is_requirement_statement:
+        marks_patterns = [
+            r"(?:my\s+)?(?:marks|score|percentage)\s*(?:is|are|of|around|:|=)?\s*([0-9]{2}(?:\.[0-9]+)?)\s*(?:%|percent|percentage)?",
+            r"(?:i\s+)?(?:have\s+)?(?:scored|got|secured|achieved|with)\s+([0-9]{2}(?:\.[0-9]+)?)\s*(?:%|percent|percentage)",
+            r"\b([0-9]{2}(?:\.[0-9]+)?)\s*(?:%|percent|percentage)\s*(?:marks|score|in\s+12|in\s+10|in\s+class|in\s+college|aggregate)\b",
+        ]
+        for p in marks_patterns:
+            m = re.search(p, lower)
+            if m:
+                try:
+                    p_val = float(m.group(1))
+                    if 30.0 <= p_val <= 100.0:
+                        profile.marks_percentage = p_val
+                        profile.field_sources["marks_percentage"] = "explicitly_supplied"
+                        break
+                except ValueError:
+                    pass
 
     # Step 13: Skills extraction (Strict word boundaries)
     skills_map = {
@@ -388,8 +455,8 @@ def extract_profile_from_text(
                 profile.skills.append(skill_key)
                 profile.field_sources["skills"] = "explicitly_supplied"
 
-    # Step 14: Caste Category (Strict word boundaries)
-    if re.search(r"\b(sc|scheduled caste)\b", lower):
+    # Step 14: Caste Category (Strict word boundaries, never match B.Sc. / M.Sc.)
+    if re.search(r"(?<![bm]\.)(?<![bm])\b(?:sc|scheduled\s+caste)\b(?!\.)", lower):
         profile.caste_category = "SC"
         profile.field_sources["caste_category"] = "explicitly_supplied"
     elif re.search(r"\b(st|scheduled tribe)\b", lower):
