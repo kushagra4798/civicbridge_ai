@@ -1,6 +1,6 @@
 # CivicBridge Live Demo & Presentation Script
 
-This script provides a step-by-step walkthrough to demonstrate the **CivicBridge Benefits Navigator** agent on Fetch.ai uAgents, Agent Chat Protocol (ACP), and ASI:One.
+This script provides a step-by-step walkthrough to demonstrate the **CivicBridge Benefits & Opportunity Navigator** agent on Fetch.ai uAgents, Agent Chat Protocol (ACP v0.3.0), and ASI:One.
 
 ---
 
@@ -12,7 +12,7 @@ Ensure your environment is set up and the database is seeded:
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Seed database
+# 2. Seed database (18 verified opportunities)
 python database/seed.py
 
 # 3. Launch interactive CLI demo
@@ -23,7 +23,70 @@ python demo_cli.py
 
 ---
 
-## Scenario 1: Small Farmer in Uttar Pradesh
+## 🌟 Flagship Demo: Representative Rajasthan Student Opportunity & Growth Journey
+
+### Context
+A college student from Rajasthan seeking both government financial assistance and internships, asking what they can apply for now and what concrete steps they should take to become eligible for more opportunities in the future.
+
+### Turn 1: Citizen Query
+> **Input:**
+> *"I'm a student from Rajasthan. I'm looking for government financial assistance and internships. Based on my profile, what can I apply for now, and what should I work on to become eligible for more opportunities?"*
+
+### Expected Agent Output
+The agent delivers an integrated, structured assessment containing three coordinated sections:
+
+1. **Profile Recognition**:
+   - `State: Rajasthan · Occupation: Student · Opportunity Interest: Schemes & Internships`
+
+2. **Opportunities Assessment**:
+   - **Government Schemes**:
+     - `NMMSS (National Means-cum-Merit Scholarship)` — Evaluated against schooling/income norms.
+     - `Post-Matric Scholarship for SC Students` — Highlighted with income and caste prerequisites.
+   - **Government Internships**:
+     - `PMIS (Prime Minister's Internship Scheme)` — ₹5,000/mo stipend + ₹6,000 grant (MCA portal).
+     - `Digital India Internship Scheme` — ₹10,000/mo stipend (MeitY).
+     - `TULIP Internship` — Urban learning program with ULBs (AICTE portal).
+
+3. **Eligibility Growth Plan (Differentiator)**:
+   - **High-Leverage Actions**:
+     - 🚀 *Complete National Scholarship Portal (NSP) One-Time Registration (OTR)* → Unlocks multiple central and state scholarships (`scholarships.gov.in`).
+     - 🚀 *Enroll in Foundation Course on SWAYAM / NPTEL* → Strengthens academic preparedness for technical internships (`swayam.gov.in`).
+   - **Actionable Gap Classification**:
+     - `Missing Registration`: e-KYC on PM Internship Portal (`pminternship.mca.gov.in`).
+     - `Missing Document`: Income Certificate (<₹2.5 Lakh) and Caste Certificate if applicable.
+   - **Fixed Boundaries Notice**:
+     - Clearly delineates age caps (e.g. PMIS 21–24 years) as statutory non-negotiable legal limits (`fixed_ineligible`), preventing false hopes.
+
+4. **Dynamic UI Card**:
+   - Renders interactive Element-Tree card with `View Roadmap (PMIS)` and `View Roadmap (NMMSS)` action buttons.
+
+---
+
+### Turn 2: Citizen Drills Down into PMIS
+> **Input:**
+> *"PMIS"* *(or tap "View Roadmap" button on card)*
+
+### Expected Agent Output
+The agent immediately returns the **Personalized Application Roadmap**:
+- **Opportunity**: `Prime Minister's Internship Scheme in Top Companies (PMIS)`
+- **Host**: `Public / Private Sector Portal (Ministry of Corporate Affairs)`
+- **Stipend**: `₹5,000 / month + ₹6,000 one-time grant`
+- **Official Application Portal**: `https://pminternship.mca.gov.in`
+- **Tailored Document Checklist**:
+  - `Aadhaar Card (linked to active mobile number)`
+  - `Educational Certificates (Class 10 / 12 / ITI / Diploma / Degree)`
+  - `Self-declaration of not engaged in full-time employment`
+- **Step-by-Step Application Steps**:
+  1. Visit the official MCA PM Internship portal at `https://pminternship.mca.gov.in`.
+  2. Complete candidate registration and Aadhaar-based e-KYC.
+  3. Complete applicant profile including academic qualifications and location preferences.
+  4. Browse published vacancies in top 500 partner companies.
+  5. Submit up to 5 internship preferences per application cycle.
+- **Verification Notice**: Verified against official `.gov.in` sources; reminders on DBT NPCI bank linking.
+
+---
+
+## Scenario 2: Small Farmer in Uttar Pradesh
 
 ### Context
 A 32-year-old farmer living in rural Uttar Pradesh with 1.2 hectares of land seeking agricultural assistance and old-age social security.
@@ -38,46 +101,18 @@ A 32-year-old farmer living in rural Uttar Pradesh with 1.2 hectares of land see
 - Displays breakdown:
   - ✅ **Met Conditions:** Landownership verified (~1.2 ha), farmer occupation verified, non-taxpayer verified.
   - 🔗 **Official Portal:** `https://pmkisan.gov.in`
-- Renders **ASI:One Interactive Card** with "View Checklist" button.
+- Renders **ASI:One Interactive Card** with "View Roadmap" button.
 
 ### Step 2: Citizen Drills Down
 > **Input:**
-> *"PM-KISAN"* *(or tap "View Checklist (PM-KISAN)" on card)*
+> *"PM-KISAN"*
 
 ### Expected Agent Output
 - **Personalized Document Checklist**:
   - `Land Ownership Document (Khatauni / RoR / Patta) (showing current holding of ~1.2 hectares)`
   - `Aadhaar Card of the applicant`
   - `Aadhaar-seeded Bank Account Passbook for DBT`
-- **Application Instructions**: 5 clear steps on `https://pmkisan.gov.in` under New Farmer Registration.
-- **Pre-requisites**: Reminder to ensure Aadhaar mobile linking and NPCI bank seeding.
-
----
-
-## Scenario 2: SC College Student in Maharashtra
-
-### Context
-A 20-year-old student from the Scheduled Caste community studying in college in Maharashtra with family income of ₹1.8 Lakh per annum.
-
-### Step 1: Citizen Query
-> **Input:**
-> *"I am a 20 year old college student in Maharashtra from SC category. My family annual income is 1.8 Lakh rupees. Are there any scholarships for me?"*
-
-### Expected Agent Output
-- Identifies **Category:** Education, **Caste:** SC, **Income:** ₹1,80,000, **Level:** College / Post-Matric.
-- Matches **Post-Matric Scholarship for SC Students** with **🟢 ELIGIBLE**.
-- Notes that NMMSS is for secondary school (Class 9-12), correctly ranking Post-Matric SC higher.
-- Official portal: `https://scholarships.gov.in`.
-
-### Step 2: Request Checklist
-> **Input:**
-> *"Post-Matric SC"*
-
-### Expected Agent Output
-- Tailored checklist highlighting:
-  - `Caste Certificate (for SC category verification from Tehsildar/SDO)`
-  - `Income Certificate (certifying annual family income under ₹1,80,000)`
-  - `College Admission Fee Receipt and Bonafide Certificate`
+- **Application Instructions**: Clear steps on `https://pmkisan.gov.in` under New Farmer Registration.
 
 ---
 

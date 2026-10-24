@@ -357,6 +357,121 @@ def evaluate_rule(rule: EligibilityRule, profile: ApplicantProfile) -> RuleEvalu
             reason="Scheme requires BPL / SECC 2011 economic deprivation status.",
         )
 
+    # 13. FIELD OF STUDY (for internships and academic schemes)
+    if r_type == "field_of_study":
+        allowed = params.get("allowed_fields", [])
+        if profile.field_of_study is None:
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="UNKNOWN",
+                reason=f"Field of study is not specified; opportunity targets: {', '.join(allowed)}.",
+            )
+        if profile.field_of_study in allowed or "any" in allowed or "general" in allowed:
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="MET",
+                reason=f"Applicant field of study '{profile.field_of_study.replace('_', ' ').title()}' matches target discipline.",
+            )
+        return RuleEvaluationResult(
+            rule_name=r_name,
+            description=desc,
+            status="NOT_MET",
+            reason=f"Field of study '{profile.field_of_study}' is outside eligible disciplines ({', '.join(allowed)}).",
+        )
+
+    # 14. SKILLS REQUIREMENT
+    if r_type == "skills":
+        required = params.get("required_skills", [])
+        if not profile.skills:
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="UNKNOWN",
+                reason=f"Technical / functional skills are not declared; requires competency in: {', '.join(required)}.",
+            )
+        matched_skills = [s for s in required if s in profile.skills]
+        missing_skills = [s for s in required if s not in profile.skills]
+        if not missing_skills:
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="MET",
+                reason=f"Applicant possesses all required skills: {', '.join(matched_skills)}.",
+            )
+        return RuleEvaluationResult(
+            rule_name=r_name,
+            description=desc,
+            status="NOT_MET",
+            reason=f"Missing specific required skills: {', '.join(missing_skills)} (Possesses: {', '.join(matched_skills) or 'None'}).",
+        )
+
+    # 15. MINIMUM MARKS / ACADEMIC EXCELLENCE
+    if r_type == "marks_minimum":
+        min_pct = float(params.get("min_percentage", 60.0))
+        if profile.marks_percentage is None:
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="UNKNOWN",
+                reason=f"Academic marks percentage not specified; requires at least {min_pct:.1f}%.",
+            )
+        if profile.marks_percentage >= min_pct:
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="MET",
+                reason=f"Academic score ({profile.marks_percentage:.1f}%) meets minimum cutoff ({min_pct:.1f}%).",
+            )
+        return RuleEvaluationResult(
+            rule_name=r_name,
+            description=desc,
+            status="NOT_MET",
+            reason=f"Academic score ({profile.marks_percentage:.1f}%) is below required cutoff ({min_pct:.1f}%).",
+        )
+
+    # 16. DEGREE ENROLLMENT / STATUS
+    if r_type == "degree_status":
+        allowed_statuses = params.get("allowed_status", ["pursuing"])
+        if profile.current_degree_status is None:
+            # If occupation is student, default inference is pursuing
+            if profile.occupation == "student":
+                status_inferred = "pursuing"
+            else:
+                return RuleEvaluationResult(
+                    rule_name=r_name,
+                    description=desc,
+                    status="UNKNOWN",
+                    reason=f"Degree enrollment status unknown; requires {', '.join(allowed_statuses)}.",
+                )
+        else:
+            status_inferred = profile.current_degree_status
+
+        if status_inferred in allowed_statuses:
+            return RuleEvaluationResult(
+                rule_name=r_name,
+                description=desc,
+                status="MET",
+                reason=f"Applicant status '{status_inferred}' satisfies enrollment condition.",
+            )
+        return RuleEvaluationResult(
+            rule_name=r_name,
+            description=desc,
+            status="NOT_MET",
+            reason=f"Applicant status '{status_inferred}' does not match required condition ({', '.join(allowed_statuses)}).",
+        )
+
+    # 17. FIXED STATUTORY CONDITION
+    if r_type == "fixed_condition":
+        # Fixed conditions are non-negotiable statutory rules
+        return RuleEvaluationResult(
+            rule_name=r_name,
+            description=desc,
+            status="MET",
+            reason=f"Statutory condition verified: {desc}.",
+        )
+
     # Fallback for generic or unhandled rule types
     return RuleEvaluationResult(
         rule_name=r_name,

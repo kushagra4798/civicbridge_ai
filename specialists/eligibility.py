@@ -17,7 +17,7 @@ class EligibilitySpecialist:
     """Specialist responsible for deterministic, evidence-backed eligibility assessments."""
 
     def evaluate_scheme(self, scheme: Scheme, profile: ApplicantProfile) -> SchemeEvaluation:
-        """Evaluate a single scheme against citizen attributes deterministically."""
+        """Evaluate a single scheme or internship against citizen attributes deterministically."""
         rule_results: List[RuleEvaluationResult] = []
         met: List[str] = []
         unmet: List[str] = []
@@ -47,15 +47,22 @@ class EligibilitySpecialist:
         elif met and unknown:
             overall = "LIKELY_ELIGIBLE"
         elif not met and not unknown:
-            overall = "ELIGIBLE"  # Scheme had no restrictive conditions
+            overall = "ELIGIBLE"  # Opportunity had no restrictive conditions
         else:
             overall = "POTENTIALLY_ELIGIBLE"
 
         return SchemeEvaluation(
             scheme_id=scheme.scheme_id,
+            opportunity_type=scheme.opportunity_type,
             scheme_name=scheme.name,
             short_name=scheme.short_name,
             category=scheme.category,
+            host_type=scheme.host_type,
+            stipend=scheme.stipend,
+            duration=scheme.duration,
+            work_mode=scheme.work_mode or "on_site",
+            field_of_study=scheme.field_of_study,
+            required_skills=scheme.required_skills,
             overall_status=overall,
             met_conditions=met,
             unmet_conditions=unmet,
@@ -75,7 +82,7 @@ class EligibilitySpecialist:
         )
 
     def evaluate_all(self, schemes: List[Scheme], profile: ApplicantProfile) -> List[SchemeEvaluation]:
-        """Evaluate all candidate schemes for an applicant, sorted by relevance and eligibility."""
+        """Evaluate all candidate opportunities for an applicant, sorted by relevance and eligibility."""
         evaluations = [self.evaluate_scheme(s, profile) for s in schemes]
 
         # Order by: ELIGIBLE > LIKELY_ELIGIBLE > POTENTIALLY_ELIGIBLE > NOT_ELIGIBLE

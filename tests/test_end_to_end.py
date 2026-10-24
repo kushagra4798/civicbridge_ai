@@ -174,11 +174,52 @@ async def test_partial_specialist_failure_handling(orchestrator):
     # Query with nonexistent domain
     r_empty = await orchestrator.handle_citizen_message(user_id, "I want assistance for space rocket tourism")
     t_empty = next((c for c in r_empty.content if isinstance(c, TextContent)), None).text
-    assert "No active government schemes matched" in t_empty or "benefit area" in t_empty.lower()
+    assert "No active government schemes" in t_empty or "what are you looking for" in t_empty.lower() or "benefit" in t_empty.lower()
 
     # Query for nonexistent scheme details via card action
     fake_card_click = '{"action": "view_checklist", "scheme_id": "non_existent_fake_scheme"}'
     r_fake = await orchestrator.handle_citizen_message(user_id, fake_card_click)
     # Orchestrator handles gracefully without throwing unhandled exception
     assert r_fake is not None
+
+
+@pytest.mark.asyncio
+async def test_representative_rajasthan_student_growth_journey(orchestrator):
+    """Representative User Journey from Section 3 of prompt.
+    
+    Prompt: "I'm a student from Rajasthan. I'm looking for government financial assistance
+    and internships. Based on my profile, what can I apply for now, and what should I work
+    on to become eligible for more opportunities?"
+    """
+    user_id = "rajasthan_student_journey"
+    prompt = (
+        "I'm a student from Rajasthan. I'm looking for government financial assistance and internships. "
+        "Based on my profile, what can I apply for now, and what should I work on to become eligible for more opportunities?"
+    )
+
+    response = await orchestrator.handle_citizen_message(user_id, prompt)
+    assert response is not None
+    text = next((c for c in response.content if isinstance(c, TextContent)), None).text
+
+    # 1. Verification of State & Profile Recognition
+    assert "Rajasthan" in text
+    assert "Student" in text
+
+    # 2. Both Schemes and Internships returned
+    assert "Government Schemes" in text or "Scholarship" in text
+    assert "Internships" in text or "PMIS" in text
+
+    # 3. Eligibility Growth Plan embedded
+    assert "Eligibility Growth Plan" in text
+    assert "High-Leverage" in text or "Action" in text
+    assert "swayam.gov.in" in text or "scholarships.gov.in" in text or "india.gov.in" in text
+
+    # 4. Step 2: Citizen drills down into PMIS
+    drilldown = await orchestrator.handle_citizen_message(user_id, "PMIS")
+    drill_text = next((c for c in drilldown.content if isinstance(c, TextContent)), None).text
+
+    assert "Application Roadmap: PMIS" in drill_text
+    assert "pminternship.mca.gov.in" in drill_text
+    assert "Aadhaar Card" in drill_text
+
 

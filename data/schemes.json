@@ -15,19 +15,29 @@
         "rule_name": "landholder_requirement",
         "description": "Must be a cultivable landholding farmer family with land records in the state land database",
         "rule_type": "is_landholder",
-        "parameters": {"required": true}
+        "parameters": {
+          "required": true
+        }
       },
       {
         "rule_name": "occupation_check",
         "description": "Primary family livelihood must include farming/agriculture",
         "rule_type": "occupation",
-        "parameters": {"allowed": ["farmer", "cultivator", "agriculture"]}
+        "parameters": {
+          "allowed": [
+            "farmer",
+            "cultivator",
+            "agriculture"
+          ]
+        }
       },
       {
         "rule_name": "income_tax_exclusion",
         "description": "Applicant or family members must NOT be an income tax payee in the last assessment year",
         "rule_type": "disqualification",
-        "parameters": {"disqualify_if_taxpayer": true}
+        "parameters": {
+          "disqualify_if_taxpayer": true
+        }
       }
     ],
     "required_documents": [
@@ -51,7 +61,8 @@
     "application_dates": "Open year-round on the PM-KISAN portal",
     "last_verified": "2026-03-15",
     "verification_status": "VERIFIED",
-    "notes": "Institutional landholders, constitutional post holders, and serving/retired government employees are excluded."
+    "notes": "Institutional landholders, constitutional post holders, and serving/retired government employees are excluded.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "pmkmy",
@@ -69,19 +80,29 @@
         "rule_name": "age_bracket",
         "description": "Entry age must be between 18 and 40 years",
         "rule_type": "age_range",
-        "parameters": {"min_age": 18, "max_age": 40}
+        "parameters": {
+          "min_age": 18,
+          "max_age": 40
+        }
       },
       {
         "rule_name": "landholding_ceiling",
         "description": "Must possess cultivable land up to 2.0 hectares (small and marginal farmer)",
         "rule_type": "landholding_max",
-        "parameters": {"max_hectares": 2.0}
+        "parameters": {
+          "max_hectares": 2.0
+        }
       },
       {
         "rule_name": "occupation_check",
         "description": "Applicant must be a practicing farmer",
         "rule_type": "occupation",
-        "parameters": {"allowed": ["farmer", "cultivator"]}
+        "parameters": {
+          "allowed": [
+            "farmer",
+            "cultivator"
+          ]
+        }
       }
     ],
     "required_documents": [
@@ -104,7 +125,8 @@
     "application_dates": "Open ongoing enrollment",
     "last_verified": "2026-02-20",
     "verification_status": "VERIFIED",
-    "notes": "Farmers covered under other statutory social security schemes like NPS, ESIC, EPFO are excluded."
+    "notes": "Farmers covered under other statutory social security schemes like NPS, ESIC, EPFO are excluded.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "pmjay",
@@ -122,13 +144,17 @@
         "rule_name": "economic_status",
         "description": "Must be listed in SECC 2011 deprivation criteria or hold a valid BPL/Ration card",
         "rule_type": "bpl_required",
-        "parameters": {"bpl_or_secc": true}
+        "parameters": {
+          "bpl_or_secc": true
+        }
       },
       {
         "rule_name": "income_limit",
         "description": "Annual household income generally below ₹2,50,000",
         "rule_type": "income_limit",
-        "parameters": {"max_annual_income": 250000.0}
+        "parameters": {
+          "max_annual_income": 250000.0
+        }
       }
     ],
     "required_documents": [
@@ -151,7 +177,8 @@
     "application_dates": "Open continuous registration and card issuance",
     "last_verified": "2026-03-01",
     "verification_status": "VERIFIED",
-    "notes": "No cap on family size, age, or gender. Pre-existing conditions are covered from day one."
+    "notes": "No cap on family size, age, or gender. Pre-existing conditions are covered from day one.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "pmmvy",
@@ -169,25 +196,34 @@
         "rule_name": "gender_condition",
         "description": "Applicant must be a pregnant woman or lactating mother",
         "rule_type": "gender",
-        "parameters": {"allowed_gender": "female"}
+        "parameters": {
+          "allowed_gender": "female"
+        }
       },
       {
         "rule_name": "maternity_condition",
         "description": "Must be expecting or lactating mother with registered pregnancy",
         "rule_type": "maternity",
-        "parameters": {"maternity_required": true}
+        "parameters": {
+          "maternity_required": true
+        }
       },
       {
         "rule_name": "age_bracket",
         "description": "Minimum age of mother should be 19 years at the time of pregnancy",
         "rule_type": "age_range",
-        "parameters": {"min_age": 19, "max_age": 55}
+        "parameters": {
+          "min_age": 19,
+          "max_age": 55
+        }
       },
       {
         "rule_name": "income_or_social_category",
         "description": "Must belong to socially/economically disadvantaged category (SC/ST/BPL/annual income under ₹8,00,000)",
         "rule_type": "income_limit",
-        "parameters": {"max_annual_income": 800000.0}
+        "parameters": {
+          "max_annual_income": 800000.0
+        }
       }
     ],
     "required_documents": [
@@ -210,7 +246,8 @@
     "application_dates": "Within 570 days from Last Menstrual Period (LMP)",
     "last_verified": "2026-01-10",
     "verification_status": "VERIFIED",
-    "notes": "Women in regular employment with Central/State Govt or PSUs are not eligible."
+    "notes": "Women in regular employment with Central/State Govt or PSUs are not eligible.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "pmay_g",
@@ -228,19 +265,27 @@
         "rule_name": "residence_rural",
         "description": "Must be residing in a rural village area",
         "rule_type": "residence",
-        "parameters": {"allowed": ["rural"]}
+        "parameters": {
+          "allowed": [
+            "rural"
+          ]
+        }
       },
       {
         "rule_name": "income_deprivation",
         "description": "Family must belong to BPL or low-income household without any pucca house anywhere in India",
         "rule_type": "income_limit",
-        "parameters": {"max_annual_income": 180000.0}
+        "parameters": {
+          "max_annual_income": 180000.0
+        }
       },
       {
         "rule_name": "disqualification_pucca",
         "description": "Household must not already own a concrete pucca house",
         "rule_type": "disqualification",
-        "parameters": {"no_pucca_house": true}
+        "parameters": {
+          "no_pucca_house": true
+        }
       }
     ],
     "required_documents": [
@@ -264,7 +309,8 @@
     "application_dates": "Rolling identification via Gram Sabha and Awaas+ survey",
     "last_verified": "2026-02-15",
     "verification_status": "VERIFIED",
-    "notes": "Houses constructed must be in the name of the female head or joint ownership."
+    "notes": "Houses constructed must be in the name of the female head or joint ownership.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "pmay_u",
@@ -282,19 +328,28 @@
         "rule_name": "residence_urban",
         "description": "Must reside in a designated statutory urban town or municipal area",
         "rule_type": "residence",
-        "parameters": {"allowed": ["urban", "semi-urban"]}
+        "parameters": {
+          "allowed": [
+            "urban",
+            "semi-urban"
+          ]
+        }
       },
       {
         "rule_name": "income_limit_ews_lig",
         "description": "Annual household income must not exceed ₹3,00,000 for EWS or ₹6,00,000 for LIG",
         "rule_type": "income_limit",
-        "parameters": {"max_annual_income": 600000.0}
+        "parameters": {
+          "max_annual_income": 600000.0
+        }
       },
       {
         "rule_name": "no_pucca_house",
         "description": "Beneficiary family should not own a pucca house in their name anywhere in India",
         "rule_type": "disqualification",
-        "parameters": {"no_pucca_house": true}
+        "parameters": {
+          "no_pucca_house": true
+        }
       }
     ],
     "required_documents": [
@@ -319,7 +374,8 @@
     "application_dates": "Ongoing via Urban Local Bodies and PMAY-MIS portal",
     "last_verified": "2026-03-10",
     "verification_status": "VERIFIED",
-    "notes": "Adult female membership in house title is mandatory for EWS/LIG beneficiaries."
+    "notes": "Adult female membership in house title is mandatory for EWS/LIG beneficiaries.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "nmmss",
@@ -337,19 +393,27 @@
         "rule_name": "occupation_student",
         "description": "Applicant must be a student currently studying in secondary school",
         "rule_type": "occupation",
-        "parameters": {"allowed": ["student"]}
+        "parameters": {
+          "allowed": [
+            "student"
+          ]
+        }
       },
       {
         "rule_name": "income_limit",
         "description": "Total parental income from all sources must not exceed ₹3,50,000 per annum",
         "rule_type": "income_limit",
-        "parameters": {"max_annual_income": 350000.0}
+        "parameters": {
+          "max_annual_income": 350000.0
+        }
       },
       {
         "rule_name": "education_eligibility",
         "description": "Must have passed Class VII examination with at least 55% marks (50% for SC/ST)",
         "rule_type": "education_min",
-        "parameters": {"min_level": "class_8_pass"}
+        "parameters": {
+          "min_level": "class_8_pass"
+        }
       }
     ],
     "required_documents": [
@@ -374,7 +438,8 @@
     "application_dates": "Academic session portal window (typically July to December annually)",
     "last_verified": "2026-01-25",
     "verification_status": "VERIFIED",
-    "notes": "Students of Kendriya Vidyalayas, Navodaya Vidyalayas, and residential schools run by Govt are not eligible."
+    "notes": "Students of Kendriya Vidyalayas, Navodaya Vidyalayas, and residential schools run by Govt are not eligible.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "post_matric_sc",
@@ -392,19 +457,27 @@
         "rule_name": "caste_sc",
         "description": "Applicant must belong to the Scheduled Caste (SC) community",
         "rule_type": "caste",
-        "parameters": {"allowed_castes": ["SC"]}
+        "parameters": {
+          "allowed_castes": [
+            "SC"
+          ]
+        }
       },
       {
         "rule_name": "education_level",
         "description": "Must have passed Matriculation (Class 10) or Higher Secondary and enrolled in recognized post-matric course",
         "rule_type": "education_min",
-        "parameters": {"min_level": "class_10_pass"}
+        "parameters": {
+          "min_level": "class_10_pass"
+        }
       },
       {
         "rule_name": "family_income_ceiling",
         "description": "Total family annual income must not exceed ₹2,50,000 per annum",
         "rule_type": "income_limit",
-        "parameters": {"max_annual_income": 250000.0}
+        "parameters": {
+          "max_annual_income": 250000.0
+        }
       }
     ],
     "required_documents": [
@@ -428,7 +501,8 @@
     "application_dates": "Annual academic portal cycle (July to December)",
     "last_verified": "2026-02-05",
     "verification_status": "VERIFIED",
-    "notes": "Scholarship is paid directly to students' accounts via DBT using 60:40 Centre-State sharing pattern."
+    "notes": "Scholarship is paid directly to students' accounts via DBT using 60:40 Centre-State sharing pattern.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "apy",
@@ -446,13 +520,18 @@
         "rule_name": "age_bracket",
         "description": "Subscriber entry age must be between 18 and 40 years",
         "rule_type": "age_range",
-        "parameters": {"min_age": 18, "max_age": 40}
+        "parameters": {
+          "min_age": 18,
+          "max_age": 40
+        }
       },
       {
         "rule_name": "income_tax_exclusion",
         "description": "Subscriber must NOT be an income tax payer (as per rule effective Oct 1, 2022)",
         "rule_type": "disqualification",
-        "parameters": {"disqualify_if_taxpayer": true}
+        "parameters": {
+          "disqualify_if_taxpayer": true
+        }
       }
     ],
     "required_documents": [
@@ -475,7 +554,8 @@
     "application_dates": "Open enrollment year-round through all commercial and regional rural banks",
     "last_verified": "2026-03-01",
     "verification_status": "VERIFIED",
-    "notes": "Same pension payable to spouse upon subscriber death; full accumulated corpus returned to nominee thereafter."
+    "notes": "Same pension payable to spouse upon subscriber death; full accumulated corpus returned to nominee thereafter.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "ignoaps",
@@ -493,13 +573,18 @@
         "rule_name": "senior_age",
         "description": "Applicant must be 60 years of age or older",
         "rule_type": "age_range",
-        "parameters": {"min_age": 60, "max_age": 120}
+        "parameters": {
+          "min_age": 60,
+          "max_age": 120
+        }
       },
       {
         "rule_name": "bpl_status",
         "description": "Applicant must belong to a household living Below Poverty Line (BPL)",
         "rule_type": "bpl_required",
-        "parameters": {"bpl_or_secc": true}
+        "parameters": {
+          "bpl_or_secc": true
+        }
       }
     ],
     "required_documents": [
@@ -522,7 +607,8 @@
     "application_dates": "Open continuous application through Gram Panchayat / Urban Local Body",
     "last_verified": "2026-02-18",
     "verification_status": "VERIFIED",
-    "notes": "Central share increases from ₹200 to ₹500/month upon reaching 80 years of age."
+    "notes": "Central share increases from ₹200 to ₹500/month upon reaching 80 years of age.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "pm_svanidhi",
@@ -540,13 +626,24 @@
         "rule_name": "occupation_vendor",
         "description": "Applicant must be engaged in street vending / hawking in urban or surrounding areas",
         "rule_type": "occupation",
-        "parameters": {"allowed": ["street_vendor", "vendor", "hawker"]}
+        "parameters": {
+          "allowed": [
+            "street_vendor",
+            "vendor",
+            "hawker"
+          ]
+        }
       },
       {
         "rule_name": "residence_urban",
         "description": "Vending activity must be in urban or peri-urban jurisdiction",
         "rule_type": "residence",
-        "parameters": {"allowed": ["urban", "semi-urban"]}
+        "parameters": {
+          "allowed": [
+            "urban",
+            "semi-urban"
+          ]
+        }
       }
     ],
     "required_documents": [
@@ -570,7 +667,8 @@
     "application_dates": "Ongoing loan applications via official portal",
     "last_verified": "2026-03-08",
     "verification_status": "VERIFIED",
-    "notes": "No collateral required. Timely repayment unlocks next higher loan tranches with cashbacks up to ₹1,200/year for digital payments."
+    "notes": "No collateral required. Timely repayment unlocks next higher loan tranches with cashbacks up to ₹1,200/year for digital payments.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "pm_vishwakarma",
@@ -588,19 +686,29 @@
         "rule_name": "trade_occupation",
         "description": "Must be an artisan or craftsperson working in one of 18 eligible traditional family-based trades (carpenter, blacksmith, potter, sculptor, cobbler, tailor, etc.)",
         "rule_type": "occupation",
-        "parameters": {"allowed": ["artisan", "craftsperson"]}
+        "parameters": {
+          "allowed": [
+            "artisan",
+            "craftsperson"
+          ]
+        }
       },
       {
         "rule_name": "age_limit",
         "description": "Minimum age of 18 years on the date of registration",
         "rule_type": "age_range",
-        "parameters": {"min_age": 18, "max_age": 75}
+        "parameters": {
+          "min_age": 18,
+          "max_age": 75
+        }
       },
       {
         "rule_name": "family_limit",
         "description": "Registration restricted to one member per family; person must not have taken similar Govt credit (PMEGP, PM SVANidhi) in past 5 years",
         "rule_type": "disqualification",
-        "parameters": {"one_member_per_family": true}
+        "parameters": {
+          "one_member_per_family": true
+        }
       }
     ],
     "required_documents": [
@@ -624,7 +732,8 @@
     "application_dates": "Open continuous registration across all CSC centers",
     "last_verified": "2026-03-12",
     "verification_status": "VERIFIED",
-    "notes": "Covers 18 traditional trades including Carpenter, Boat Maker, Blacksmith, Potter, Sculptor, Cobbler, Mason, Basket/Mat Maker, Doll & Toy Maker, Barber, Garland Maker, Washerman, Tailor, Fishing Net Maker."
+    "notes": "Covers 18 traditional trades including Carpenter, Boat Maker, Blacksmith, Potter, Sculptor, Cobbler, Mason, Basket/Mat Maker, Doll & Toy Maker, Barber, Garland Maker, Washerman, Tailor, Fishing Net Maker.",
+    "opportunity_type": "scheme"
   },
   {
     "scheme_id": "pmegp",
@@ -642,13 +751,18 @@
         "rule_name": "age_limit",
         "description": "Beneficiary must be at least 18 years of age",
         "rule_type": "age_range",
-        "parameters": {"min_age": 18, "max_age": 70}
+        "parameters": {
+          "min_age": 18,
+          "max_age": 70
+        }
       },
       {
         "rule_name": "education_qualification",
         "description": "At least Class 8th pass for projects costing above ₹10 Lakh in manufacturing and ₹5 Lakh in service",
         "rule_type": "education_min",
-        "parameters": {"min_level": "class_8_pass"}
+        "parameters": {
+          "min_level": "class_8_pass"
+        }
       }
     ],
     "required_documents": [
@@ -673,6 +787,426 @@
     "application_dates": "Portal open throughout the financial year",
     "last_verified": "2026-02-12",
     "verification_status": "VERIFIED",
-    "notes": "Higher subsidy (35% in rural areas, 25% in urban) for special categories including Women, SC, ST, OBC, Ex-servicemen, Differently-abled."
+    "notes": "Higher subsidy (35% in rural areas, 25% in urban) for special categories including Women, SC, ST, OBC, Ex-servicemen, Differently-abled.",
+    "opportunity_type": "scheme"
+  },
+  {
+    "scheme_id": "pmis_internship",
+    "opportunity_type": "internship",
+    "name": "Prime Minister's Internship Scheme in Top Companies",
+    "short_name": "PMIS",
+    "description": "Flagship national internship scheme facilitating 12-month on-the-job training in India's top 500 corporate companies, offering exposure to real-life business environments and industry practices.",
+    "category": "internship",
+    "governing_department": "Ministry of Corporate Affairs (MCA)",
+    "host_type": "private_via_official_portal",
+    "benefit_summary": "12-month internship with monthly financial assistance of ₹5,000 (₹4,500 from Central Govt via DBT + ₹500 CSR company contribution) plus a one-time grant of ₹6,000 for incidental expenses.",
+    "benefit_amount": "₹5,000 / month + ₹6,000 grant",
+    "stipend": "₹5,000 / month + ₹6,000 grant",
+    "duration": "12 months",
+    "work_mode": "on_site",
+    "geographic_coverage": "All India",
+    "target_residence": "all",
+    "field_of_study": [
+      "general",
+      "commerce",
+      "science",
+      "arts",
+      "engineering",
+      "polytechnic"
+    ],
+    "required_skills": [
+      "basic communication",
+      "computer literacy"
+    ],
+    "rules": [
+      {
+        "rule_name": "age_bracket",
+        "description": "Candidate age must be between 21 and 24 years",
+        "rule_type": "age_range",
+        "parameters": {
+          "min_age": 21,
+          "max_age": 24
+        }
+      },
+      {
+        "rule_name": "education_eligibility",
+        "description": "Must have passed at least Class 10th / 12th / ITI / Diploma / Graduation (BA, B.Sc, B.Com, BBA, BCA)",
+        "rule_type": "education_min",
+        "parameters": {
+          "min_level": "class_10_pass"
+        }
+      },
+      {
+        "rule_name": "taxpayer_exclusion",
+        "description": "Candidate or family member must NOT be an income tax payer in the previous assessment year",
+        "rule_type": "disqualification",
+        "parameters": {
+          "disqualify_if_taxpayer": true
+        }
+      }
+    ],
+    "required_documents": [
+      "Aadhaar Card",
+      "Class 10th / 12th / ITI / Diploma / Degree Certificate",
+      "Self-declaration of non-taxpayer status",
+      "Bank Account Passbook (Aadhaar-seeded for DBT)"
+    ],
+    "application_steps": [
+      "Visit the official PM Internship Scheme portal at https://pminternship.mca.gov.in.",
+      "Register as Candidate with Aadhaar-linked mobile verification.",
+      "Complete digital profile with educational qualifications and district location preferences.",
+      "Browse posted internship opportunities from participating companies and apply up to 5 vacancies.",
+      "Shortlisting conducted by companies; offer letter issued directly on portal with automated DBT stipend setup."
+    ],
+    "official_portal_url": "https://pminternship.mca.gov.in",
+    "evidence_urls": [
+      "https://pminternship.mca.gov.in",
+      "https://www.myscheme.gov.in/schemes/pmis",
+      "https://mca.gov.in"
+    ],
+    "application_dates": "Portal active with periodic application windows (Cycle-wise announcements)",
+    "application_deadline": "Cycle 2024-2025",
+    "last_verified": "2026-03-20",
+    "verification_status": "VERIFIED",
+    "notes": "Hosted by top 500 companies under CSR provisions. Reservation as per affirmative action norms applies."
+  },
+  {
+    "scheme_id": "niti_aayog_internship",
+    "opportunity_type": "internship",
+    "name": "NITI Aayog Internship Scheme",
+    "short_name": "NITI-Internship",
+    "description": "Internship scheme allowing enrolled undergraduate and postgraduate students to interact closely with NITI Aayog verticals and gain firsthand experience in public policy, governance, and development initiatives.",
+    "category": "internship",
+    "governing_department": "NITI Aayog, Government of India",
+    "host_type": "government",
+    "benefit_summary": "Unstipended honorary internship with high-level exposure to national policy design, empirical analysis, and an official Government of India Experience Certificate upon successful submission of report.",
+    "benefit_amount": "Honorary Experience Certificate",
+    "stipend": "Unstipended (Honorary certification)",
+    "duration": "6 weeks to 6 months",
+    "work_mode": "on_site",
+    "geographic_coverage": "New Delhi (NITI Aayog HQ)",
+    "target_residence": "all",
+    "field_of_study": [
+      "economics",
+      "public_policy",
+      "data_analysis",
+      "agriculture",
+      "engineering",
+      "social_sciences",
+      "law",
+      "commerce"
+    ],
+    "required_skills": [
+      "research",
+      "data_analysis",
+      "policy_analysis"
+    ],
+    "rules": [
+      {
+        "rule_name": "degree_status_check",
+        "description": "Applicant must be pursuing undergraduate degree (completed 2nd year/4th sem) or post-graduate/research course",
+        "rule_type": "degree_status",
+        "parameters": {
+          "allowed_status": [
+            "pursuing"
+          ]
+        }
+      },
+      {
+        "rule_name": "academic_excellence",
+        "description": "Must have secured at least 85% marks in Class 12th examination",
+        "rule_type": "marks_minimum",
+        "parameters": {
+          "min_percentage": 85.0
+        }
+      },
+      {
+        "rule_name": "field_of_study_match",
+        "description": "Field of study must align with NITI Aayog policy verticals (Economics, Policy, Data, Agriculture, Engineering, Law, Social Sciences)",
+        "rule_type": "field_of_study",
+        "parameters": {
+          "allowed_fields": [
+            "economics",
+            "public_policy",
+            "data_analysis",
+            "agriculture",
+            "engineering",
+            "law",
+            "commerce",
+            "science",
+            "arts"
+          ]
+        }
+      }
+    ],
+    "required_documents": [
+      "No Objection Certificate (NOC) from college Principal / Dean / HOD",
+      "Class 12th Marksheet showing minimum 85% marks",
+      "College Identity Card and latest semester grade sheet",
+      "Statement of Purpose (SOP) explaining policy interests"
+    ],
+    "application_steps": [
+      "Apply online exclusively on the NITI Aayog portal at https://www.niti.gov.in/internship.",
+      "Application portal opens on the 1st to 10th of every month.",
+      "Select preferred vertical (e.g. Agriculture, Economics, Health, Education, Skill Development).",
+      "Upload required NOC and academic transcripts.",
+      "Shortlisted applicants contacted by respective Verticals for verification and induction."
+    ],
+    "official_portal_url": "https://www.niti.gov.in/internship",
+    "evidence_urls": [
+      "https://www.niti.gov.in/internship",
+      "https://niti.gov.in"
+    ],
+    "application_dates": "1st to 10th of every month online window",
+    "application_deadline": "Monthly rolling window (1st-10th)",
+    "last_verified": "2026-03-10",
+    "verification_status": "VERIFIED",
+    "notes": "Strict minimum 85% requirement in Class 12 for undergraduate students. Interns must arrange own stay in Delhi."
+  },
+  {
+    "scheme_id": "digital_india_internship",
+    "opportunity_type": "internship",
+    "name": "Digital India Internship Scheme",
+    "short_name": "Digital-India-Internship",
+    "description": "Hands-on technology internship for engineering and IT students to work on critical national public digital infrastructure, e-governance systems, AI initiatives, and cyber security.",
+    "category": "internship",
+    "governing_department": "Ministry of Electronics and Information Technology (MeitY) & National Informatics Centre (NIC)",
+    "host_type": "government",
+    "benefit_summary": "Monthly stipend of ₹10,000 for 2 months (extendable to 3 months) and official Certificate of Internship issued by MeitY, Government of India.",
+    "benefit_amount": "₹10,000 / month",
+    "stipend": "₹10,000 / month",
+    "duration": "2 to 3 months",
+    "work_mode": "hybrid",
+    "geographic_coverage": "All India",
+    "target_residence": "all",
+    "field_of_study": [
+      "computer_science",
+      "engineering",
+      "information_technology"
+    ],
+    "required_skills": [
+      "python",
+      "web_development",
+      "data_analysis",
+      "sql"
+    ],
+    "rules": [
+      {
+        "rule_name": "it_field_check",
+        "description": "Must be pursuing recognized degree in Computer Science, IT, Electronics, or MCA",
+        "rule_type": "field_of_study",
+        "parameters": {
+          "allowed_fields": [
+            "computer_science",
+            "engineering",
+            "information_technology"
+          ]
+        }
+      },
+      {
+        "rule_name": "minimum_marks",
+        "description": "Must have secured at least 60% aggregate marks in previous qualifying semester examinations",
+        "rule_type": "marks_minimum",
+        "parameters": {
+          "min_percentage": 60.0
+        }
+      },
+      {
+        "rule_name": "degree_status",
+        "description": "Must be currently enrolled in B.E./B.Tech/MCA/M.Sc (IT) program",
+        "rule_type": "degree_status",
+        "parameters": {
+          "allowed_status": [
+            "pursuing"
+          ]
+        }
+      }
+    ],
+    "required_documents": [
+      "Recommendation Letter / Bonafide from Institute Dean or HOD",
+      "College Identity Card",
+      "Semester Grade Cards certifying >=60% aggregate",
+      "Resume demonstrating programming project work"
+    ],
+    "application_steps": [
+      "Visit the official MeitY internship portal at https://www.meity.gov.in/internship-scheme.",
+      "Register during the announced summer/winter internship batch window.",
+      "Upload institutional sponsorship letter and marksheets.",
+      "Select technical area of interest (e.g. AI, Cyber Security, Digital Health, Cloud Architecture).",
+      "Selection committee reviews applications and publishes list of selected interns on portal."
+    ],
+    "official_portal_url": "https://www.meity.gov.in/internship-scheme",
+    "evidence_urls": [
+      "https://www.meity.gov.in/internship-scheme",
+      "https://meity.gov.in"
+    ],
+    "application_dates": "Seasonal portal cycles (Summer: March-April; Winter: October-November)",
+    "application_deadline": "Annual cycle announcement",
+    "last_verified": "2026-02-28",
+    "verification_status": "VERIFIED",
+    "notes": "Exclusively for students pursuing recognized computer science, IT, or electronics degrees."
+  },
+  {
+    "scheme_id": "tulip_internship",
+    "opportunity_type": "internship",
+    "name": "The Urban Learning Internship Program (TULIP)",
+    "short_name": "TULIP",
+    "description": "National program offering fresh graduates hands-on experiential learning opportunities in Urban Local Bodies (ULBs) and Smart Cities across India to solve live urban development challenges.",
+    "category": "internship",
+    "governing_department": "Ministry of Housing and Urban Affairs (MoHUA) & Ministry of Education / AICTE",
+    "host_type": "government",
+    "benefit_summary": "Experiential urban governance internship across municipal corporations and smart city SPVs, with stipend determined by host municipal body and joint MoHUA-AICTE Certificate.",
+    "benefit_amount": "Stipend as per Urban Local Body (typically ₹6,000 - ₹12,000 / month)",
+    "stipend": "₹6,000 - ₹12,000 / month",
+    "duration": "8 weeks to 1 year",
+    "work_mode": "on_site",
+    "geographic_coverage": "All India (4,400+ Urban Local Bodies and 100 Smart Cities)",
+    "target_residence": "all",
+    "field_of_study": [
+      "engineering",
+      "urban_planning",
+      "architecture",
+      "commerce",
+      "social_sciences",
+      "computer_science",
+      "general"
+    ],
+    "required_skills": [
+      "gis",
+      "urban_planning",
+      "data_analysis",
+      "excel"
+    ],
+    "rules": [
+      {
+        "rule_name": "graduate_qualification",
+        "description": "Must be an Indian citizen with a completed undergraduate degree (B.Tech, B.Arch, B.Plan, B.Com, B.A., B.Sc)",
+        "rule_type": "education_min",
+        "parameters": {
+          "min_level": "graduate"
+        }
+      },
+      {
+        "rule_name": "recent_graduate_status",
+        "description": "Must be a fresh graduate applying within 18 to 24 months of graduation",
+        "rule_type": "degree_status",
+        "parameters": {
+          "allowed_status": [
+            "fresh_graduate",
+            "completed"
+          ]
+        }
+      }
+    ],
+    "required_documents": [
+      "Graduation Degree / Provisional Degree Certificate",
+      "AICTE National Internship Portal Registration ID",
+      "Resume / Portfolio of relevant projects",
+      "Aadhaar Card"
+    ],
+    "application_steps": [
+      "Register on the AICTE National Internship Portal (https://internship.aicte-india.org).",
+      "Search and filter by TULIP and your preferred city or state municipal corporation.",
+      "Select specific role (e.g., Solid Waste Management, GIS Mapping, Urban Transport, Smart City IT).",
+      "Submit application with digital resume and degree credential.",
+      "Urban Local Body evaluates profiles and conducts interviews/onboarding directly."
+    ],
+    "official_portal_url": "https://internship.aicte-india.org",
+    "evidence_urls": [
+      "https://internship.aicte-india.org",
+      "https://tulip.mohua.gov.in",
+      "https://mohua.gov.in"
+    ],
+    "application_dates": "Open continuous postings year-round on the AICTE portal",
+    "application_deadline": "Rolling basis across municipal corporations",
+    "last_verified": "2026-03-18",
+    "verification_status": "VERIFIED",
+    "notes": "Applicants must apply within 18 to 24 months of graduation. 4,400+ ULBs participate across all Indian states."
+  },
+  {
+    "scheme_id": "rbi_summer_internship",
+    "opportunity_type": "internship",
+    "name": "RBI Summer Placement Scheme",
+    "short_name": "RBI-Internship",
+    "description": "Prestigious central banking internship offering high-level empirical research experience in monetary economics, financial stability, digital payments, and banking supervision.",
+    "category": "internship",
+    "governing_department": "Reserve Bank of India (RBI)",
+    "host_type": "government",
+    "benefit_summary": "Monthly stipend of ₹20,000 for up to 3 months conducting research under RBI economic departments with premier banking research credentials.",
+    "benefit_amount": "₹20,000 / month",
+    "stipend": "₹20,000 / month",
+    "duration": "Up to 3 months (April - July)",
+    "work_mode": "on_site",
+    "geographic_coverage": "All India (RBI Central Office Mumbai & Regional Offices)",
+    "target_residence": "all",
+    "field_of_study": [
+      "economics",
+      "commerce",
+      "finance",
+      "public_policy",
+      "data_analysis",
+      "law"
+    ],
+    "required_skills": [
+      "research",
+      "data_analysis",
+      "economics"
+    ],
+    "rules": [
+      {
+        "rule_name": "postgraduate_enrollment",
+        "description": "Must be pursuing postgraduate studies (Economics, Finance, Management, Law, Data Science) or 5-year integrated course",
+        "rule_type": "education_min",
+        "parameters": {
+          "min_level": "graduate"
+        }
+      },
+      {
+        "rule_name": "field_of_study_rbi",
+        "description": "Field of study must be Economics, Finance, Management, Law, or Data Science",
+        "rule_type": "field_of_study",
+        "parameters": {
+          "allowed_fields": [
+            "economics",
+            "commerce",
+            "finance",
+            "public_policy",
+            "data_analysis",
+            "law"
+          ]
+        }
+      },
+      {
+        "rule_name": "pursuing_status",
+        "description": "Must be currently enrolled and pursuing academic study",
+        "rule_type": "degree_status",
+        "parameters": {
+          "allowed_status": [
+            "pursuing"
+          ]
+        }
+      }
+    ],
+    "required_documents": [
+      "Bonafide Certificate from Institute/University",
+      "Official Academic Transcripts",
+      "Brief CV and Statement of Research Interest"
+    ],
+    "application_steps": [
+      "Apply online via RBI Opportunities portal (https://opportunities.rbi.org.in).",
+      "Portal open from 15th September to 15th December annually for following summer.",
+      "Fill online application form and select preferred RBI regional office.",
+      "Shortlisted candidates undergo interview in January/February; selected list announced in March."
+    ],
+    "official_portal_url": "https://opportunities.rbi.org.in",
+    "evidence_urls": [
+      "https://opportunities.rbi.org.in",
+      "https://rbi.org.in"
+    ],
+    "application_dates": "Annual window (15th September to 15th December)",
+    "application_deadline": "15th December annually",
+    "last_verified": "2026-02-15",
+    "verification_status": "VERIFIED",
+    "notes": "Open to students pursuing postgraduate courses or 5-year integrated degrees in economics, finance, or law."
   }
 ]

@@ -13,7 +13,7 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
 )
 
-from schemas.results import SchemeEvaluation
+from schemas.results import SchemeEvaluation, EligibilityGrowthPlan
 
 CARD_PROTOCOL_VERSION = "1"
 CIVICBRIDGE_SOURCE = "civicbridge_ui"
@@ -31,17 +31,53 @@ def _variant_for_status(status: str) -> str:
 
 def build_scheme_list_payload(
     evaluations: List[SchemeEvaluation],
-    title: str = "Government Schemes & Benefits",
-    subtitle: Optional[str] = "Select a scheme below to view customized documents and application steps.",
+    title: str = "Government Opportunities & Benefits",
+    subtitle: Optional[str] = "Select an opportunity below for customized documents, steps, or growth pathways.",
+    growth_plan: Optional[EligibilityGrowthPlan] = None,
 ) -> dict[str, Any]:
-    """Build the card_payload dictionary for an interactive scheme list in ASI:One."""
+    """Build the card_payload dictionary for an interactive scheme and internship list in ASI:One."""
     items: List[dict[str, Any]] = []
+
+    # 1. High-leverage pathway banner if available
+    if growth_plan and growth_plan.high_leverage_actions:
+        hl_names = ", ".join(f"[{g.requirement_name}]" for g in growth_plan.high_leverage_actions[:2])
+        items.append(
+            {
+                "children": [
+                    {
+                        "type": "group",
+                        "direction": "column",
+                        "gap": 6,
+                        "children": [
+                            {
+                                "type": "badge",
+                                "label": f"🚀 {len(growth_plan.high_leverage_actions)} High-Leverage Growth Action(s)",
+                                "variant": "info",
+                            },
+                            {
+                                "type": "text",
+                                "value": f"Key pathways to unlock multiple opportunities: {hl_names}.",
+                                "style": "body",
+                            },
+                        ],
+                    }
+                ]
+            }
+        )
 
     for item in evaluations:
         status_variant = _variant_for_status(item.overall_status)
-        badge_label = f"{item.overall_status.replace('_', ' ')}"
-        if item.benefit_amount:
+        type_prefix = "💼 Internship" if item.opportunity_type == "internship" else "📜 Scheme"
+        badge_label = f"{type_prefix} • {item.overall_status.replace('_', ' ')}"
+        if item.stipend:
+            badge_label += f" • {item.stipend}"
+        elif item.benefit_amount:
             badge_label += f" • {item.benefit_amount}"
+
+        desc_text = item.benefit_summary
+        if item.host_type:
+            host_str = "Government Department" if item.host_type == "government" else "Public/Private Sector via Official Portal"
+            desc_text = f"Host: {host_str} | " + desc_text
 
         items.append(
             {
@@ -63,7 +99,7 @@ def build_scheme_list_payload(
                             },
                             {
                                 "type": "text",
-                                "value": item.benefit_summary,
+                                "value": desc_text,
                                 "style": "body",
                             },
                             {
@@ -112,6 +148,11 @@ def build_scheme_detail_payload(plan: dict[str, Any]) -> dict[str, Any]:
         f"{idx + 1}. {step}" for idx, step in enumerate(plan.get("application_steps", []))
     )
 
+    type_tag = "Internship" if plan.get("opportunity_type") == "internship" else "Scheme"
+    badge_label = f"{type_tag} • Status: {plan.get('eligibility_status', '').replace('_', ' ')}"
+    if plan.get("stipend"):
+        badge_label += f" • Stipend: {plan.get('stipend')}"
+
     section: dict[str, Any] = {
         "type": "section",
         "title": f"Application Plan: {plan.get('short_name')}",
@@ -124,12 +165,12 @@ def build_scheme_detail_payload(plan: dict[str, Any]) -> dict[str, Any]:
                 "children": [
                     {
                         "type": "badge",
-                        "label": f"Status: {plan.get('eligibility_status', '').replace('_', ' ')}",
+                        "label": badge_label,
                         "variant": _variant_for_status(plan.get("eligibility_status", "")),
                     },
                     {
                         "type": "heading",
-                        "value": "Benefit Overview",
+                        "value": "Opportunity Overview",
                         "level": 3,
                     },
                     {
@@ -145,18 +186,18 @@ def build_scheme_detail_payload(plan: dict[str, Any]) -> dict[str, Any]:
                     },
                     {
                         "type": "text",
-                        "value": docs_formatted or "Standard government ID and bank passbook required.",
+                        "value": docs_formatted or "Standard identification and institutional bonafide required.",
                         "style": "body",
                     },
                     {"type": "divider"},
                     {
                         "type": "heading",
-                        "value": "Application Instructions",
+                        "value": "Official Application Procedure",
                         "level": 3,
                     },
                     {
                         "type": "text",
-                        "value": steps_formatted or "Apply through the official portal.",
+                        "value": steps_formatted or "Apply via official government portal.",
                         "style": "body",
                     },
                     {"type": "divider"},
@@ -174,7 +215,7 @@ def build_scheme_detail_payload(plan: dict[str, Any]) -> dict[str, Any]:
                 "children": [
                     {
                         "type": "button",
-                        "label": "Back to Schemes List",
+                        "label": "Back to Opportunities List",
                         "primary": False,
                         "action": {
                             "selection": {
@@ -204,10 +245,12 @@ def build_card_metadata(payload: dict[str, Any]) -> MetadataContent:
 
 
 def create_schemes_list_chat_message(
-    markdown_text: str, evaluations: List[SchemeEvaluation]
+    markdown_text: str,
+    evaluations: List[SchemeEvaluation],
+    growth_plan: Optional[EligibilityGrowthPlan] = None,
 ) -> ChatMessage:
     """Create ChatMessage containing both markdown text and interactive list card."""
-    payload = build_scheme_list_payload(evaluations)
+    payload = build_scheme_list_payload(evaluations, growth_plan=growth_plan)
     return ChatMessage(
         timestamp=datetime.now(timezone.utc),
         msg_id=uuid4(),
